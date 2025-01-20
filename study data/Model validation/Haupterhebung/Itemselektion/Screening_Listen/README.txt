@@ -1,0 +1,1 @@
+This folder contains the process documentation for selecting the final items for the main survey. As the full training data cannot be shared, the scripts may not function entirely as intended. Additionally, lists for manual item screening are included. Selected Items Final contains the final items that were included in the survey.

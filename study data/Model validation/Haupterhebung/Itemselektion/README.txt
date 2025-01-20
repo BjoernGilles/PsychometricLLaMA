@@ -1,0 +1,1 @@
+This folder documents the process of creating item lists for the manual screening of items. The input consists of generated sample items, while the final item selection is provided in the 'screening_listen' folder.

@@ -1,0 +1,99 @@
+
+# Packete installieren
+```{r}
+library(pacman)
+
+p_load(psych,tidyverse, stringr, rjson, reticulate, TTR
+       )
+```
+
+```{r}
+pd <- import("pandas")
+library(data.table)
+
+train_log <- pd$read_json("trainer_state.json")
+  train_log_old <- pd$read_json("../../../V5/checkpoint-1140/trainer_state.json")
+
+log <- rbindlist(l = train_log$log_history,fill = TRUE)
+log_old <- rbindlist(l = train_log_old$log_history,fill = TRUE)
+
+
+log <- log %>%
+  filter(loss!=0)
+
+lm(data=log,loss~epoch)%>%summary()
+# 31.23%
+
+log <- log %>%
+  mutate(sd= runSD(loss))
+log$sd
+
+ggpubr::ggscatter(log,"epoch","loss",add = "reg.line")
+ggpubr::ggscatter(log,"epoch","loss",add = c("loess"))
+
+ggpubr::ggscatter(log,"epoch","sd",add = "loess", cor.coef = TRUE,cor.method = "spearman")
+ggpubr::ggscatter(log,"epoch","loss",add = "loess", cor.coef = TRUE,cor.method = "spearman")
+#64.5%
+log%>%
+  filter(!is.na(sd))%>%
+lm(formula = sd~poly(epoch,3))%>%summary()
+# 77.46 %
+
+```
+
+```{r}
+# cut loss into three groups based on epoch
+
+log_old <- log_old %>%
+  mutate(epoch = cut(epoch,3))
+
+log <- log %>%
+  mutate(epoch = cut(epoch,2))
+```
+
+```{r}
+log_old <- log_old %>%
+  mutate(loss = exp(-loss))
+
+log_old %>%
+  group_by(epoch) %>%
+  rstatix::get_summary_stats(loss)
+
+log <- log %>%
+  mutate(loss = exp(-loss))
+
+log %>%
+  group_by(epoch) %>%
+  rstatix::get_summary_stats(loss)
+
+```
+
+```{r}
+
+```
+
+
+# Compare new to old
+```{r}
+
+plot(log$loss,log_old$loss[1:30],col = "red")
+
+log$loss_old <- log_old$loss[1:30]
+
+ ggpubr::ggscatter(log,"loss_old","loss",add = "reg.line", cor.coef = TRUE,cor.method = "spearman")
+ 
+ 
+ plot.ts(log$loss,ylim = c(1.2,2.2))
+ plot.ts(log_old$loss)
+ 
+mean(log$loss)
+mean(log_old$loss)
+
+sd(log$loss)
+sd(log_old$loss)
+
+
+
+
+```
+

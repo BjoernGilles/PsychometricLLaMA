@@ -1,0 +1,1 @@
+{"run_name": "./output/llama-2-13b_lora", "train_runtime": 11331.012, "train_samples_per_second": 1.611, "train_steps_per_second": 0.101, "train_loss": 1.1367090912266429, "epoch": 3.0}

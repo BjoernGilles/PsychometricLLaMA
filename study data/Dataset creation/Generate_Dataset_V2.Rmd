@@ -1,0 +1,792 @@
+
+# Skript zur erstellung der LLM-Prompts
+## Pakete laden
+
+```{r}
+library(pacman)
+p_load(
+  psych,
+  tidyverse,
+  stringr,
+  textclean,
+  openxlsx,
+  ggpubr
+)
+```
+
+
+# Daten einlesen
+```{r}
+data <- read.xlsx("./SRC/Eigener Datensatz/Data_Training.xlsx")
+scale_definition <- read.xlsx("./SRC/Eigener Datensatz/Skalen_Definitionen_shortened.xlsx")
+load("./SRC/Datenbank Hommel/hommel_items_full_3.RDS")
+ipip_items <- read.xlsx("./SRC/IPIP/IPIP_Items_shortened.xlsx")
+```
+
+# Schwierigkeit skalieren
+
+```{r}
+data$Mittelwert <- data$Mittelwert%>%as.numeric()
+scale_ranges <- scale_definition$Skalenrange%>%str_split(pattern = ";",simplify = TRUE)
+
+scale_ranges_max <-  apply(FUN = max,scale_ranges,MARGIN = 1)%>%as.numeric()
+scale_ranges_max <- 1/scale_ranges_max
+
+scale_definition <- cbind(scale_definition,scale_ranges_max)
+
+
+difficulty_vector <- c()
+
+for(i in 1:nrow(data)){
+  
+  if(is.na(data$Mittelwert[i])){
+    difficulty_vector <- c(difficulty_vector,NA)
+  }else{
+    construct_id <- which(scale_definition$ID==data$ID[i])
+    difficulty <- data$Mittelwert[i]*scale_definition$scale_ranges_max[construct_id]
+    difficulty_vector <- c(difficulty_vector,difficulty)
+  }
+  
+}
+difficulty_vector <- difficulty_vector%>%round(digits = 2)
+data <- cbind(data, difficulty= difficulty_vector)
+```
+
+# Extract Construct definitions for all the Items
+```{r}
+
+main_definition_vector <- c()
+sub_definition_vector <- c()
+construct_vector <-c()
+subconstruct_vector <- c()
+
+for(i in 1:nrow(data)){
+  
+# Finde the construct_id
+construct_id <- which(scale_definition$ID==data$ID[i])
+
+#Match main construct definition
+if(scale_definition[construct_id,2]%>%is.na()){
+  main_definition_vector <- c(main_definition_vector, NA)
+}else{
+  main_definition_vector <- c(main_definition_vector, scale_definition[construct_id,2])
+}
+    
+if(scale_definition[construct_id,4]%>%is.na()){
+  sub_definition_vector <- c(sub_definition_vector, NA)
+}else{
+  sub_definition_vector <- c(sub_definition_vector, scale_definition[construct_id,4])
+}
+
+if(scale_definition[construct_id,1]%>%is.na()){
+  construct_vector <- c(construct_vector, NA)
+}else{
+  construct_vector <- c(construct_vector, scale_definition[construct_id,1])
+}
+
+if(scale_definition[construct_id,3]%>%is.na()){
+  subconstruct_vector <- c(subconstruct_vector, NA)
+}else{
+  subconstruct_vector <- c(subconstruct_vector, scale_definition[construct_id,3])
+}
+  
+}
+
+
+data <- cbind(data,construct_vector,main_definition_vector,subconstruct_vector,sub_definition_vector)
+```
+
+
+# Die Items von Björn Hommel hinzufügen
+
+```{r}
+output <- output%>%
+  filter(!is.na(scale_name))
+
+data_hommel <-
+  data.frame(
+    Item = output$item,
+    difficulty = (output$difficulty%>%round(digits = 2)),
+    construct_vector = output$scale_name,
+    main_definition_vector = rep(NA, 1668),
+    subconstruct_vector = rep(NA, 1668),
+    sub_definition_vector = rep(NA, 1668)
+  )
+
+data_hommel <- data_hommel%>%
+  mutate(Item= paste0(Item,"INVERTEDNA"))
+
+
+data <- data[,-c(2,3)]
+data <- rbind(data,data_hommel)
+```
+
+# IPIP Items hinzufügen
+```{r}
+# Function converting to lower or upper Case the first letter of each string
+
+str_start_to_lower <- function(string){
+  string <- stringr::str_squish(string)
+  string <- paste(tolower(substr(string, 1, 1)), substr(string, 2, nchar(string)), sep="")
+  return(string)
+}
+
+str_start_to_upper <- function(string){
+  string <- stringr::str_squish(string)
+  string <- paste(toupper(substr(string, 1, 1)), substr(string, 2, nchar(string)), sep="")
+  return(string)
+}
+
+# Skalen mit einem Alpha von <= .60 entfernen
+
+(ipip_items$alpha<=.60) %>% which() %>% length()
+
+# 83 Items stammen aus Skalen mit einem niedrigem Alpha
+# Diese werden entfernt
+
+ipip_low_alpha <- (ipip_items$alpha<=.60) %>% which()
+
+ipip_items <- ipip_items[-ipip_low_alpha,]
+
+
+
+
+# Changing the first letter to lower case and adding "I" to the start
+ipip_items$text <- sapply(ipip_items$text,FUN=str_start_to_lower)
+  
+ipip_items$text <- paste("I",ipip_items$text)
+
+for(i in 1:nrow(ipip_items)){
+  if(ipip_items$key[i]==-1){
+    
+    
+   ipip_items$text[i] <-  ipip_items$text[i]%>%
+     str_replace(pattern = "\\.",replacement = " (R)\\.")
+    
+  }
+  
+}
+
+
+ipip_labels <- ipip_items$label%>%str_split(pattern = ",")
+(lapply(ipip_labels,FUN = length)>=2) %>% which()%>%length()
+# 35 Items haben Subskalen
+
+#Aufteilen in Main und Subkonstrukt
+ipip_main_construct <- sapply(ipip_labels,FUN=function(x)x[1])
+ipip_sub_construct <- sapply(ipip_labels,FUN=function(x)x[2])
+
+
+data_ipip <-
+  data.frame(
+    Item = ipip_items$text,
+    difficulty = rep(NA, 3430),
+    construct_vector = ipip_main_construct,
+    main_definition_vector = rep(NA, 3430),
+    subconstruct_vector = ipip_sub_construct,
+    sub_definition_vector = rep(NA, 3430)
+  )
+
+data <- rbind(data,data_ipip)
+```
+
+
+
+# Text cleaning
+```{r}
+# Function for standartizing the definitions
+clean_definition <- function(x){
+  clean <- x %>% textclean::add_missing_endmark(replacement = ".")
+  clean <- clean%>%str_replace_all(pattern = "\\([^()]*\\d+[^()]*\\)",replacement = "")
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_sentence()
+  
+  
+  
+  return(clean)
+}
+
+# Function for standartizing items
+clean_items <- function(x){
+  clean <- x %>% textclean::add_missing_endmark(replacement = ".")
+  clean <- clean%>%str_replace_all(pattern = "\\. \\(R\\)\\.",replacement = " (r).")
+  clean <- clean%>%str_replace_all(pattern = "\\(R\\)",replacement = "(r)")
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_sentence()
+  
+  
+  return(clean)
+}
+# Function for standartizing construct labels
+
+clean_labels <- function(x){
+  clean <- x
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_title()
+  
+  
+  return(clean)
+}
+
+data$main_definition_vector <- data$main_definition_vector%>%clean_definition()
+data$sub_definition_vector <- data$sub_definition_vector%>%clean_definition()
+data$Item <- data$Item%>%clean_items()
+data$construct_vector <- data$construct_vector %>% clean_labels()
+data$subconstruct_vector <- data$subconstruct_vector %>% clean_labels()
+
+
+data <- apply(data,MARGIN = c(1,2),FUN=function(clean){if(is.na(clean)|(clean%in%c("Na.","NA","Na","NA."))){
+    clean <- "NA"
+  }else{clean}})%>%as.data.frame()
+```
+
+
+## Unvollstaendige Items entfernen
+
+```{r}
+
+self_word <-  grepl(data$Item,pattern="\\b(I|i|me|Me|myself|Myself|My|my)\\b")
+n_word_over_4 <- grepl(data$Item,pattern="\\b\\w+\\b.*\\b\\w+\\b.*\\b\\w+\\b.*\\b\\w+\\b")
+
+exclude <- !self_word & !n_word_over_4
+
+which(exclude)%>%length()
+#5
+
+data <- data[!exclude,]
+```
+
+
+
+## Deduplizieren
+
+# Invertierung als zusaetzliche Spalte einfuegen
+```{r}
+
+data <- data%>%
+  mutate(inverted=grepl(Item,pattern="\\(r\\)"))%>%
+  mutate(Item=str_remove_all(Item,pattern=" \\(r\\)"))
+
+data$inverted%>%table(useNA = "ifany")
+
+'FALSE  TRUE 
+ 3881   849 '
+
+grepl(data$Item,pattern="\\(r\\)")%>%any()
+# FALSE
+
+data <- data%>%
+  mutate(inverted=ifelse(grepl(Item,pattern="invertedna"),NA,inverted))%>%
+  mutate(Item=str_remove_all(Item,pattern="invertedna"))
+
+#Invertedna. // .. entfernen
+
+data <- data%>%
+  mutate(Item=stringr::str_replace_all(Item,pattern="\\.\\.",replacement="\\."))%>%
+  mutate(Item=stringr::str_replace_all(Item,pattern="Invertedna\\.",replacement=""))%>%
+  mutate(Item=stringr::str_replace_all(Item,pattern="Invertedna",replacement=""))
+
+data$inverted%>%table(useNA = "ifany")
+
+'FALSE  TRUE  <NA> 
+ 3208  1567  1655 '
+
+data <- data[sample(1:nrow(data),replace = FALSE),]
+
+which(data$inverted)%>%length()
+# 1567
+
+data$subconstruct_vector%>%na.omit()%>%table()%>%length()
+# 195 Facetten
+```
+
+
+#Haeufige Items entfernen
+```{r}
+nrow(data)
+# 6430 Items
+
+# Zu haeufige Items entfernen.
+item_table <- data$Item%>%table()
+(item_table[order(item_table,decreasing = TRUE)]>5) %>% which()%>%length()
+# 162 Items kommen mehr als 5 mal vor.
+
+over_1_reps <- (item_table[order(item_table,decreasing = TRUE)]>1) %>% which()
+common_items <-  item_table[order(item_table,decreasing = TRUE)][over_1_reps]%>%names()
+
+
+
+data <- data %>%
+  group_by(Item) %>%
+  slice({
+    o <- order(!(main_definition_vector=="NA"),!(difficulty=="NA"),decreasing = TRUE)
+    head(o, min(length(o), 1))
+  })
+
+data$Item%>%table()%>%length()
+
+# 3881 Items
+
+```
+
+# Konstrukte mit zu wenigen Items entfernen
+
+```{r}
+data$construct_vector %>% table() %>% length()
+# 375 Konstrukte
+
+less_than_two <-  data$construct_vector %>% table()<3
+less_than_two%>% which() %>% length()
+# 62 Konstrukte sind unterbesetzt
+
+c_names <- less_than_two%>%names()
+c_names_exclude <- c_names[which(less_than_two)]
+
+data <- data%>%
+  filter(!construct_vector%in%c_names_exclude)
+
+# Konstrukte mit zu wenig Item, welche entfernt wurden
+' [1] "Abasement"           "Absorption"          "Aesthetics"          "Ambition"            "Communality"         "Entertaining"       
+ [7] "Language Mastery"    "Responsive Distress" "Self-Forgetful"      "Teamwork"            "Virtuous"            "Wisdom" '
+
+data$construct_vector %>% table() %>% length()
+#313 Konstrukte
+```
+
+
+```{r}
+nrow(data)
+# 3794 Items
+
+construct_table <- (paste(data$construct_vector) %>% table())
+sorted_construct_table <- construct_table[construct_table %>% order(decreasing = TRUE)]
+sorted_construct_table[1:40]
+ggdensity(sorted_construct_table%>%c(),)
+
+sorted_construct_table%>%c()%>%describe()
+# Die 313 Konstrukte haben im Median 9 Items. Im Mittelwert hingegen 12.12 Das Maximum ist 348 für Extraversion
+# Balancieren sollte helfen die Daten zu verbessern
+# Insbesondere die folgenden Konstrukte kommen extrem haeufig vor:
+
+'Extraversion                                                      Agreeableness 
+                                                               348                                                                103 
+                                                 Conscientiousness                                                        Neuroticism 
+                                                                98                                                                 70 
+                                                           Empathy                                                         Narcissism 
+                                                                58                                                                 58 
+                                       Hardiness In Perinatal Loss                                                          Curiosity 
+                                                                45                                                                 43 
+                                                         Opennness Reasons Of Atheists And Agnostics For Nonbelief In God’s Existence 
+                                                                38                                                                 38 
+                                      Faith Development - Morality                       Risk-Taking/Sensation-Seeking/Thrill-Seeking 
+                                                                36                                                                 35 
+                                                         Dominance                                               Grandiose Narcissism 
+                                                                34                                                                 33 
+                                                       Sociability                                                         Depression 
+                                                                32                                                                 31 
+                                                      Dissociation                                                        Imagination 
+                                                                31                                                                 31 
+                                                  Machiavellianism                                                        Dutifulness 
+                                                                31                                                                 30 
+                                                Self-Actualization                                                 Self-Consciousness 
+                                                                30                                                                 30 
+                                                           Fantasy                                                Emotional Stability 
+                                                                29                                                                 28 
+                                                         Intellect                                                        Psychopathy 
+                                                                28                                                                 28'
+
+
+data <- data %>%
+  group_by(construct_vector, subconstruct_vector) %>%
+  slice({
+    o <- order(!(main_definition_vector=="NA"),!(difficulty=="NA"),decreasing = TRUE)
+    head(o, min(length(o), 100))
+  })
+
+
+data <- data%>%unique()
+
+nrow(data)
+# 3610
+
+
+```
+
+
+
+
+# Dataset stats
+```{r}
+data$Item%>% unique()%>%length()
+# 4674 Unique Items
+
+
+data$construct_vector %>% unique()%>%length()
+# 345 Constructs
+
+data$main_definition_vector %>% unique()%>%length()
+# 93 Constructs with main definition
+
+
+data$sub_definition_vector %>% unique() %>% length()
+# 144 Subconstructs with definition
+
+(!data$difficulty=="NA")%>%which%>%length()
+# 1741 Schwierigkeitsangaben fuer Items
+
+
+
+
+```
+# Schwierigkeit klassifizieren
+```{r,eval=TRUE,include=TRUE}
+# Funktioniert nicht mehr, weil NAs jetzt als string gespeichert sind.
+data$difficulty <- data$difficulty%>%
+  as.numeric()
+
+rm(difficulty)
+
+data$difficulty %>%
+  describe(na.rm = TRUE)
+'  vars    n mean   sd median trimmed  mad  min  max range skew kurtosis se
+X1    1 1800 0.63 0.12   0.64    0.64 0.13 0.22 0.92   0.7 -0.4    -0.36  0'
+
+data$difficulty_3 <- ntile(data$difficulty,3)
+cor(data$difficulty,data$difficulty_3,method = "kendall",use = "pairwise.complete.obs")
+# 0.8255865
+
+data$difficulty_4 <- ntile(data$difficulty,4)
+
+cor(data$difficulty,data$difficulty_4,method = "kendall",use = "pairwise.complete.obs")
+# 0.8756981
+
+data$difficulty_5 <- ntile(data$difficulty,5)
+
+cor(data$difficulty,data$difficulty_5,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9036968
+
+data$difficulty_7 <- ntile(data$difficulty,7)
+
+cor(data$difficulty,data$difficulty_7,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9354539
+
+data$difficulty_10 <- ntile(data$difficulty,10)
+
+cor(data$difficulty,data$difficulty_10,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9575464
+
+data%>%
+  select(difficulty,difficulty_3)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_3)%>%
+  get_summary_stats()
+
+'  difficulty_3 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty   600  0.22  0.58   0.5   0.45  0.54  0.09 0.059 0.489 0.07  0.003 0.006
+2            2 difficulty   600  0.58  0.7    0.64  0.61  0.67  0.06 0.044 0.641 0.034 0.001 0.003
+3            3 difficulty   600  0.7   0.92   0.76  0.73  0.78  0.05 0.044 0.759 0.043 0.002 0.003'
+
+data%>%
+  select(difficulty,difficulty_5)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_5)%>%
+  get_summary_stats()
+
+'  difficulty_5 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty   360  0.22  0.52   0.46  0.41  0.49  0.08 0.059 0.447 0.06  0.003 0.006
+2            2 difficulty   360  0.52  0.61   0.57  0.54  0.59  0.05 0.03  0.565 0.027 0.001 0.003
+3            3 difficulty   360  0.61  0.68   0.64  0.62  0.66  0.04 0.03  0.642 0.021 0.001 0.002
+4            4 difficulty   360  0.68  0.74   0.71  0.69  0.73  0.04 0.03  0.709 0.019 0.001 0.002
+5            5 difficulty   360  0.74  0.92   0.78  0.76  0.8   0.04 0.03  0.786 0.035 0.002 0.004'
+
+data%>%
+  select(difficulty,difficulty_7)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_7)%>%
+  get_summary_stats()
+
+'  difficulty_7 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty   258  0.22  0.49   0.44  0.39  0.47  0.08 0.059 0.424 0.056 0.003 0.007
+2            2 difficulty   257  0.49  0.56   0.52  0.51  0.54  0.03 0.03  0.526 0.019 0.001 0.002
+3            3 difficulty   257  0.56  0.62   0.59  0.58  0.6   0.02 0.015 0.59  0.016 0.001 0.002
+4            4 difficulty   257  0.62  0.67   0.64  0.63  0.65  0.02 0.015 0.642 0.015 0.001 0.002
+5            5 difficulty   257  0.67  0.71   0.69  0.68  0.7   0.02 0.015 0.69  0.013 0.001 0.002
+6            6 difficulty   257  0.71  0.76   0.74  0.73  0.75  0.02 0.015 0.738 0.014 0.001 0.002
+7            7 difficulty   257  0.76  0.92   0.79  0.77  0.81  0.04 0.03  0.799 0.033 0.002 0.004'
+
+```
+
+# calculate construct wise difficulty rankings
+
+```{r}
+# Deal with constructs with <5 items, create ntiles based on n of items,
+# if n = 3 calculate ntile based on 3, then convert to 1,3,5
+
+
+convert_to_ntile <- function(x) {
+  
+  if(!any(!is.na(x))){
+
+    return(NA)
+  }
+  
+  if (length(na.omit(x)) < 5) {
+    x <- ntile(x, length(na.omit(x)))
+      
+  x[which.max(x)] <- 5
+  x[which.min(x)] <- 1
+  
+  x[!(x %in% c(1, 5))] <- 3
+    
+    
+  }
+  
+  if (length(na.omit(x)) == 1) {
+    
+    return(NA)
+    
+  }
+  
+  
+
+  
+  
+  if (length(na.omit(x)) >= 5) {
+    x <- ntile(x, 5)
+    
+  }
+  
+  return(x)
+  
+}
+
+# Try testing the function
+
+convert_to_ntile(1)
+# NA
+
+convert_to_ntile(2:1)
+# 5 1
+
+convert_to_ntile(3:1)
+# 5 3 1
+
+convert_to_ntile(4:1)
+# 5 3 3 1
+
+convert_to_ntile(5:1)
+
+#5 4 3 2 1
+
+convert_to_ntile(6:1)
+
+# 5 4 3 2 1 1
+
+convert_to_ntile(20:1)
+# 5 5 5 5 4 4 4 4 3 3 3 3 2 2 2 2 1 1 1 1
+
+# Seems to work!
+
+data$diff_5_construct_wise <- NA
+
+
+for (construct in (unique(data[!is.na(data$difficulty),"construct_vector"])%>%
+                   pull(construct_vector))) {
+  
+  
+  construct_data <- data[(data$construct_vector == construct)&!is.na(data$difficulty), ]
+  
+  construct_data$diff_5_construct_wise <- convert_to_ntile(construct_data$difficulty)
+  
+  data[(data$construct_vector == construct)&!is.na(data$difficulty), "diff_5_construct_wise"] <- construct_data$diff_5_construct_wise
+  
+  
+  
+}
+
+table(data$diff_5_construct_wise,useNA = "ifany")
+
+' 1    2    3    4    5 <NA> 
+ 406  343  353  295  321 2956 '
+
+table(data$difficulty_5,useNA = "ifany")
+
+'   1    2    3    4    5 <NA> 
+ 349  348  348  348  348 2933 '
+
+cor(data$difficulty_5,data$diff_5_construct_wise,method = "kendall",use = "pairwise.complete.obs")
+#0.652711
+
+lm(difficulty~as.factor(diff_5_construct_wise) + construct_vector,data = data)%>%summary()
+# Achsenabschnitt = 0.52
+# Schätzung für diff_1 = +0.079
+# Schätzung für diff_2 = +0.148
+# Schätzung für diff_3 = +0.198
+# Schätzung für diff_4 = +0.248
+# R^2 = .82
+
+
+tmp_discordances <- data$construct_vector[which(!is.na(data$difficulty_5)&is.na(data$diff_5_construct_wise))]
+
+data[which(data$construct_vector%in%tmp_discordances),]%>%
+  select(construct_vector,difficulty_5,diff_5_construct_wise)%>%
+  arrange(construct_vector)
+
+
+
+```
+
+
+
+
+
+
+
+
+# Daten als Prompt formatieren
+```{r}
+format_prompt <- function(x){
+  paste("###Construct:",x$construct_vector, "\n", "###C_definition:", x$main_definition_vector, "\n","###Subconstruct:",
+        x$subconstruct_vector,"\n","###S_defintion:",x$sub_definition_vector, "\n",
+        "###Difficulty:",x$diff_5_construct_wise, "\n",
+        "###Inverted:",x$inverted, "\n",
+        "###Item:")%>%return()
+}
+
+prompt_vector <- format_prompt(data)
+
+
+dataset <- data.frame(input=prompt_vector,output=data$Item)
+
+
+
+prompt_vector%>%nchar()%>%ggdensity()
+
+prompt_vector%>%nchar()%>%describe()
+
+## Neu
+' vars    n   mean     sd median trimmed   mad min max range skew kurtosis   se
+X1    1 4730 214.11 135.89    147  180.35 10.38 134 751   617    2        3 1.98'
+
+
+## Alt
+'   vars    n   mean     sd median trimmed  mad min max range skew kurtosis   se
+X1    1 6257 197.69 120.78    147  164.43 7.41 136 751   615 2.51      5.5 1.53'
+
+
+
+
+dataset$input %>% nchar() %>% describe()
+
+'  vars    n   mean     sd median trimmed   mad min max range skew kurtosis   se
+X1    1 4730 214.11 135.89    147  180.35 10.38 134 751   617    2        3 1.98'
+
+dataset$output %>% nchar() %>% describe()
+
+'  vars    n  mean    sd median trimmed   mad min max range skew kurtosis   se
+X1    1 4730 47.15 24.18     41   44.27 20.76   9 184   175 1.16     1.46 0.35'
+
+cor(data$difficulty%>%as.numeric(),data$difficulty_5,method = "kendall",use = "pairwise.complete.obs")
+
+write.csv(dataset,file = "data_diff_fixed_190124.csv",fileEncoding = "utf-8",quote = TRUE,row.names = FALSE)
+write.xlsx(dataset,file = "data_diff_fixed_190124.xlsx")
+
+write.xlsx(data,file = "data_diff_fixed_190124_full.xlsx")
+
+
+```
+
+# Estemating sample size necessary
+
+```{r, include=FALSE,eval=FALSE}
+
+d_factor <-  data%>%
+  filter(difficulty_5%in%c(1,5))%>%
+  mutate(difficulty_factor=as.factor(difficulty_5))
+
+cohen.d(d_factor$difficulty,d_factor$difficulty_5)
+
+'Cohen d statistic of difference between two means
+     lower effect upper
+[1,]  6.41    6.8  7.18
+
+Multivariate (Mahalanobis) distance between groups
+[1] 6.8
+r equivalent of difference between two means
+data 
+0.96 
+'
+
+d_factor%>%
+  group_by(difficulty_factor)%>%
+  select(difficulty_factor,difficulty)%>%
+  get_summary_stats()
+
+'  difficulty_factor variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <fct>             <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 1                 difficulty   349  0.22  0.52   0.46  0.41   0.5  0.09 0.059 0.449 0.061 0.003 0.006
+2 5                 difficulty   348  0.74  0.92   0.78  0.76   0.8  0.04 0.03  0.787 0.035 0.002 0.004'
+
+
+
+
+# Inwieweit korrilieren Construct und Schwierigkeit
+d_factor_2 <- data%>%
+  mutate(construct_vector=construct_vector%>%as.factor())
+
+d_factor_2_aov <- aov(difficulty~construct_vector,data = d_factor_2)
+plot(d_factor_2_aov)
+
+summary(d_factor_2_aov)
+
+'                   Df Sum Sq Mean Sq F value Pr(>F)    
+construct_vector  164  7.917 0.04827   4.181 <2e-16 ***
+Residuals        1530 17.664 0.01155  '
+
+
+# Inwieweit war das construnct-sortierte klassifizieren erfolgreich
+
+d_factor_3 <- data%>%
+  filter(diff_5_construct_wise%in%c(1,5))%>%
+  mutate(difficulty_factor=as.factor(diff_5_construct_wise))
+
+d_factor_3_aov <- aov(difficulty~difficulty_factor,data = d_factor_3)
+summary(d_factor_3_aov)
+
+'                   Df Sum Sq Mean Sq F value Pr(>F)    
+difficulty_factor   1 10.883  10.883    1403 <2e-16 ***
+Residuals         708  5.492   0.008   '
+
+cohen.d(d_factor_3$difficulty,d_factor_3$difficulty_factor)
+
+'Cohen d statistic of difference between two means
+     lower effect upper
+[1,]  2.63   2.84  3.04
+
+Multivariate (Mahalanobis) distance between groups
+[1] 2.9
+r equivalent of difference between two means
+data 
+0.82 '
+
+
+d_factor_3%>%
+  group_by(difficulty_factor)%>%
+  select(difficulty_factor,difficulty)%>%
+  get_summary_stats()
+
+
+'  difficulty_factor variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <fct>             <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 1                 difficulty   398  0.22  0.76   0.5   0.45  0.56  0.11 0.089 0.505 0.096 0.005 0.009
+2 5                 difficulty   312  0.37  0.92   0.76  0.72  0.8   0.08 0.059 0.754 0.077 0.004 0.009'
+```
+
+
+

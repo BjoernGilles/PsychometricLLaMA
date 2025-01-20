@@ -1,0 +1,18 @@
+# Packete laden
+
+```{r}
+library(pacman)
+
+p_load(
+  tidyverse,
+  stringr,
+  psych,
+  openxlsx
+)
+```
+
+
+
+```{r}
+data <- read.xlsx("generated_items.xlsx")
+```

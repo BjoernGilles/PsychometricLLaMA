@@ -1,0 +1,39 @@
+
+# Packete installieren
+```{r}
+library(pacman)
+
+p_load(psych,tidyverse, stringr, rjson, reticulate, TTR
+       )
+```
+
+```{r}
+pd <- import("pandas")
+library(data.table)
+
+train_log <- pd$read_json("trainer_state.json")
+
+log <- rbindlist(l = train_log$log_history,fill = TRUE)
+
+log <- log %>%
+  filter(loss!=0)
+
+lm(data=log,loss~epoch)%>%summary()
+# 31.17%
+
+log <- log %>%
+  mutate(sd= runSD(loss))
+log$sd
+
+ggpubr::ggscatter(log,"epoch","loss",add = "reg.line")
+ggpubr::ggscatter(log,"epoch","loss",add = c("loess"))
+
+ggpubr::ggscatter(log,"epoch","sd",add = "loess", cor.coef = TRUE,cor.method = "spearman")
+#64.5%
+log%>%
+  filter(!is.na(sd))%>%
+lm(formula = sd~poly(epoch,3))%>%summary()
+# 77.46 %
+
+```
+

@@ -1,0 +1,78 @@
+item,inverted,construct,difficulty,train_similarity,internal_similarity,valid_content
+ I am not an assertive person.,True,extraversion,1,75,71,1
+ I would prefer to stay at home rather than going out and about.,True,extraversion,5,69,64,1
+ I am the opposite of talkative.,True,extraversion,3,75,79,1
+ I am not interested in being the center of attention.,True,extraversion,3,79,74,1
+ I am a low-key person.,True,extraversion,3,71,76,1
+ I am an Outgoing person.,False,extraversion,1,74,87,1
+ I am someone who has an abundance of energy.,False,extraversion,5,71,77,1
+ I am sociable.,False,extraversion,3,77,77,1
+ I love to talk.,False,extraversion,3,79,71,1
+" I am a person who is active, dynamic and energetic.",False,extraversion,3,79,70,1
+ I leave tasks unfinished.,True,conscientiousness,1,83,88,1
+ I am often irresponsible.,True,conscientiousness,5,75,70,1
+ I like to get away with doing as little work as possible.,True,conscientiousness,3,75,71,1
+ I see myself as someone who is not too particular about details.,True,conscientiousness,3,75,72,1
+ I am someone who acts without thinking.,True,conscientiousness,3,77,76,1
+ I am someone who makes plans.,False,conscientiousness,1,75,86,1
+" I am someone who tends to be reliable, steady.",False,conscientiousness,5,73,80,1
+ I do not like to leave things unfinished.,False,conscientiousness,3,81,73,1
+ I am someone who can be counted on to do her duty.,False,conscientiousness,3,74,69,1
+ I always know where my things are.,False,conscientiousness,3,79,80,1
+ I am very calm.,True,neuroticism,1,80,86,1
+ I do not worry much.,True,neuroticism,5,80,69,1
+" I am relaxed, even when things get tense.",True,neuroticism,3,71,70,1
+" I am not tense, worried, or anxious.",True,neuroticism,3,69,79,1
+ I am not worried or anxious most of the time.,True,neuroticism,3,76,81,1
+ I worry about things that are unlikely to happen.,False,neuroticism,1,79,67,1
+" I am someone who is Tense, Anxious, Nervous, Moody, Worrying.",False,neuroticism,5,69,87,1
+ I am often tense.,False,neuroticism,3,77,88,1
+ I am someone who is sometimes Tense and Anxious.,False,neuroticism,3,70,77,1
+ I get annoyed easily.,False,neuroticism,3,89,80,1
+ I am a pretty disagreeable person.,True,agreeableness,1,75,72,1
+ I feel little compassion for those who are worse off than myself.,True,agreeableness,5,83,67,1
+ I am not sympathetic to the needs of others.,True,agreeableness,3,80,77,1
+ I try to impose my will on others.,True,agreeableness,3,85,64,1
+ I do not like to be of service to others.,True,agreeableness,3,88,71,1
+ I am a warm person.,False,agreeableness,1,83,89,1
+" I am someone who is kind-hearted, has a soft heart.",False,agreeableness,5,76,86,1
+ I am the type of person who is willing to compromise in conflicts.,False,agreeableness,3,73,70,1
+ I am someone who is very forgiving.,False,agreeableness,3,71,78,1
+ I am grateful to others for their support.,False,agreeableness,3,75,65,1
+ I see myself as someone who is not very interested in abstract ideas.,True,openness,1,89,84,1
+ I am not curious about the world.,True,openness,5,84,77,1
+ I am someone who has many ideas.,False,openness,1,77,76,1
+ I am someone who is curious about the world.,False,openness,5,71,80,1
+ I am an insightful person.,False,openness,3,68,70,1
+ I tend to be more curious than others.,False,openness,3,71,70,1
+ I tend to think of myself as someone who is a curious person.,False,openness,3,75,75,1
+ I feel uncomfortable when things in my life are in an uncertain state.,False,need_for_closure_1,1,79,73,1
+" In general, I feel more comfortable with a well-thought-out plan than with having to improvise.",False,need_for_closure_1,1,70,71,1
+ I dislike chaos.,False,need_for_closure_1,5,87,80,1
+ I prefer order over chaos.,False,need_for_closure_1,5,72,72,1
+ I prefer a tidy environment.,False,need_for_closure_1,3,71,74,1
+ I like a regular daily routine.,False,need_for_closure_1,3,75,83,1
+ I find it discomforting when things are uncertain.,False,need_for_closure_2,1,80,70,1
+ I feel comfortable with people i know will always act the same way.,False,need_for_closure_2,1,78,88,1
+ I have a preference for things that are predictable.,False,need_for_closure_2,5,71,68,1
+ I prefer regular schedules to irregular ones.,False,need_for_closure_2,5,71,75,1
+ I am happiest when i know what will happen.,False,need_for_closure_2,3,83,64,1
+ I prefer to stick to familiar situations.,False,need_for_closure_2,3,78,68,1
+ I feel uncomfortable with ambiguous situations.,False,need_for_closure_3,1,80,89,1
+" When making a choice, it is important to have confidence in it.",False,need_for_closure_3,1,67,65,1
+ I prefer to avoid situations where i cannot make a rational decision.,False,need_for_closure_3,5,81,66,1
+ I prefer quick decisions to prolonged deliberation.,False,need_for_closure_3,5,69,70,1
+ I prefer to deal with a certain outcome over not knowing the outcome.,False,need_for_closure_3,3,67,68,1
+ It would be easier for me to make decisions if there were absolute rules to follow.,False,need_for_closure_3,3,69,68,1
+ Uncertain situations are unpleasant.,False,need_for_closure_4,1,71,73,1
+ It is stressful for me to live with the uncertainty whether something is true or not.,False,need_for_closure_4,1,70,69,1
+ I don’t like to have doubts about important decisions.,False,need_for_closure_4,5,77,71,1
+ The solution of ambiguous situations makes me happy.,False,need_for_closure_4,5,69,65,1
+ I feel uncomfortable with situations where the outcome is unclear.,False,need_for_closure_4,3,73,73,1
+" When in doubt, a decision should be made and implemented.",False,need_for_closure_4,3,65,61,1
+ I do not like people whose opinions and attitudes are very different from my own.,False,need_for_closure_5,1,77,70,1
+ I am not interested in abstract topics.,False,need_for_closure_5,1,84,77,1
+ I have difficulty imagining possibilities that are different from reality.,False,need_for_closure_5,5,82,76,1
+ I am a closed-minded person.,False,need_for_closure_5,5,74,72,1
+ I don’t like it when people don’t think straight.,False,need_for_closure_5,3,77,84,1
+ I tend to have a rigid view of the world.,False,need_for_closure_5,3,76,70,1

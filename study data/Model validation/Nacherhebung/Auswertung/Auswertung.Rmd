@@ -1,0 +1,260 @@
+# Skript für die Auswertung der Nacherhebung
+Laden der Packete und der Daten
+```{r}
+library(pacman)
+
+p_load(
+  performance,
+  see,
+  tidyverse,
+  openxlsx,
+  psych,
+  paran,
+  stringr,
+  ppcor,
+  rstanarm,
+  modelsummary
+)
+
+```
+
+```{r}
+data_path_eng = ".//Sources/MA_Erhebung_Prolific_Nacherhebung_2.+Februar+2024_06.02.csv"
+
+
+source("Scripts/pre_processing.R")
+```
+
+
+
+# Demographics
+
+```{r}
+data$country %>% table()
+#48
+
+data$Q125 %>% factor(levels = c(1,2,3,4,5,6,7),labels = c("17 oder jünger","18-20","21-29","30-39","40-49","50-59","60 oder älter"))%>% table() %>%prop.table()
+
+'17 oder jünger          18-20          21-29          30-39          40-49          50-59  60 oder älter 
+             0              3             51             30             25             24             14 '
+
+'17 oder jünger          18-20          21-29          30-39          40-49          50-59  60 oder älter 
+             0              1              7             16             11              6              7 '
+
+
+'17 oder jünger          18-20          21-29          30-39          40-49          50-59  60 oder älter 
+    0.00000000     0.02040816     0.34693878     0.20408163     0.17006803     0.16326531     0.09523810 '
+
+'17 oder jünger          18-20          21-29          30-39          40-49          50-59  60 oder älter 
+    0.00000000     0.02083333     0.14583333     0.33333333     0.22916667     0.12500000     0.14583333 '
+
+
+data$Q126 %>% factor(levels = c(1,2,3,4),labels = c("weiblich","männlich","Ich möchte keine Zuordnung vornehmen.","divers"))%>% table() %>%prop.table()%>%round(3)*100
+
+'weiblich 
+                                   78 
+                             männlich 
+                                   66 
+Ich möchte keine Zuordnung vornehmen. 
+                                    0 
+                               divers 
+                                    3 '
+
+'                             weiblich                              männlich Ich möchte keine Zuordnung vornehmen. 
+                                 77.1                                  20.8                                   0.0 
+                               divers 
+                                  2.1 '
+
+
+data$Q22%>% factor(levels = c(2,4,5,7,8,9),labels = c("Completed primary school education","Completed secondary school education","Vocational school or similar","University, Bachelors degree","University or professional degree (MA, MS, MBA, PhD, JD, MD, DDS)","None"))%>% table() %>%prop.table()%>%round(3)*100
+
+'                               Completed primary school education 
+                                                                1 
+                             Completed secondary school education 
+                                                               24 
+                                     Vocational school or similar 
+                                                               17 
+                                     University, Bachelors degree 
+                                                               44 
+University or professional degree (MA, MS, MBA, PhD, JD, MD, DDS) 
+                                                               13 
+                                                             None 
+                                                                0'
+
+'                               Completed primary school education                              Completed secondary school education 
+                                                                1                                                                11 
+                                     Vocational school or similar                                      University, Bachelors degree 
+                                                                8                                                                19 
+University or professional degree (MA, MS, MBA, PhD, JD, MD, DDS)                                                              None 
+                                                                9 '
+
+# Kein Abschluss 1
+# Mittlere Reife / Abitur / secondary school education 
+
+
+# Arbeiten Sie?
+data$SQ09 %>% factor(levels = c(1,0),labels = c("Ja","Nein"))%>% table()
+
+'  Ja Nein 
+  37   11 '
+
+'       Ja      Nein 
+0.7708333 0.2291667 '
+
+# Arbeitsstunden
+data$SQ09_1_1 %>% as.numeric()%>%describe()
+
+'   vars  n  mean    sd median trimmed  mad min max range  skew kurtosis   se
+X1    1 48 29.69 17.05     39   30.82 5.19   1  47    46 -0.89    -0.96 2.46'
+```
+
+# H3: Compare Item mean and difficulty controlling for the construct. 
+
+```{r}
+# Calcualte the mean of the items
+item_means <- apply(data[,13:60],FUN = mean,MARGIN = 2)
+
+
+
+# Predict the mean using difficulty with the construct label as a level 1 variable
+
+item_means <- data.frame(means=item_means)
+item_means$construct <- items$construct
+item_means$inverted <- items$inverted %>% as.factor()
+item_means$difficulty <- items$difficulty %>% as.factor()
+
+item_means$difficulty <- relevel(item_means$difficulty,ref = "1")
+
+items$construct <- as.factor(item_means$construct)
+
+# reformat the data
+
+
+# plot means
+
+item_means%>%
+  as_tibble()%>%
+  group_by(construct)%>%
+  ggpubr::ggdensity("means")+
+  facet_wrap(~construct)+
+  coord_cartesian(xlim = c(1,5))
+
+
+
+```
+
+
+# Create random effect models
+
+```{r}
+library(lme4)
+library(lmerTest)
+
+
+
+# Create a long dataset of items
+
+item_responses_long <- data %>% 
+  pivot_longer(cols = c(13:60),names_to = "item",values_to = "value")
+
+item_responses_long$difficulty <- NA
+
+item_ids <-  item_responses_long$item %>% str_remove_all(pattern = "Q4_")%>% as.numeric()
+
+for(i in 1:length(item_ids)){
+  item_responses_long$difficulty[i] <- items$difficulty[item_ids[i]]
+}
+
+item_responses_long$difficulty <- as.factor(item_responses_long$difficulty)
+
+item_responses_long$construct <- NA
+
+for(i in 1:length(item_ids)){
+  item_responses_long$construct[i] <- items$construct[item_ids[i]]%>% as.character()
+}
+
+item_responses_long$construct <- as.factor(item_responses_long$construct)
+item_responses_long$item <- as.factor(item_responses_long$item)
+
+item_responses_long$value <- scale(item_responses_long$value,scale = F)
+
+
+# Construct multi level models
+
+fit00 <- lmer(value~(1|ResponseId)+(1|item),data = item_responses_long,REML = T)
+fit0 <- lmer(value~difficulty+(1|ResponseId)+(1|item),data = item_responses_long,REML = T)
+fit1 <- lmer(value~difficulty+construct+(1|ResponseId)+(1|item),data = item_responses_long,REML = T)
+
+
+
+# Checking assumptions
+check_model(fit0,show_dots = FALSE,panel = FALSE)
+check_normality(fit0)
+
+anova(fit0,fit1)
+
+anova(fit0, test=F)
+anova(fit1, test=F)
+
+summary(fit0,ddf = "Satterthwaite")
+summary(fit1,ddf = "Satterthwaite")
+
+item_residuals<- item_responses_long$value - predict(fit1,item_responses_long, re.form = ~(1|item),random.only=T)
+participant_residuals <- item_responses_long$value - predict(fit1,item_responses_long, re.form = ~(1|ResponseId),random.only=T)
+fixed_residuals <- item_responses_long$value - predict(fit1,item_responses_long, re.form = NA)
+
+total_residuals <- item_responses_long$value - predict(fit1,item_responses_long, re.form = NULL)
+total_residuals_fit0 <- item_responses_long$value - predict(fit0,item_responses_long, re.form = NULL)
+
+# Plot residuals
+
+plot(fitted(fit1),total_residuals)
+
+car::qqPlot(fixed_residuals)
+
+
+car::qqPlot(item_residuals)
+car::qqPlot(participant_residuals)
+car::qqPlot(total_residuals)
+
+
+
+ranef(fit1)$item%>%unlist()%>%
+  car::qqPlot()
+
+
+# Residual plot
+
+
+fit1@frame$total_resid <- total_residuals
+
+fit1@frame%>%
+  ggpubr::ggboxplot(y="total_resid",x="difficulty")
+
+fit1@frame%>%
+  ggpubr::ggboxplot(y="total_resid",x="construct")+
+  theme(axis.text.x = , axis.ticks.x = )
+
+
+
+# Antwortverteilungen inspizieren
+item_responses_long%>%
+  ggpubr::gghistogram("value")+
+  stat_bin(binwidth=1, geom="text", aes(label=..count..), vjust=-1.5)+
+  facet_wrap(~difficulty)
+
+
+item_responses_long%>%
+  rstatix::cohens_d(value~difficulty)
+
+'
+1	value	1	5	0.04598335	1152	1152	negligible'
+
+# Modellvergleich anstellen und speichern.
+
+modelsummary(list(fit00,fit0,fit1), stars = T,output = 'results2.docx')
+```
+
+
+
+

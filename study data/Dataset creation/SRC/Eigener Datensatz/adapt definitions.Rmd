@@ -1,0 +1,119 @@
+## Pakete laden
+
+```{r}
+library(pacman)
+p_load(
+  psych,
+  tidyverse,
+  stringr,
+  textclean,
+  openxlsx,
+  ggpubr
+)
+```
+
+```{r}
+data <- read.xlsx("Data_Training.xlsx")
+scale_definition <- read.xlsx("Skalen_Definitionen_shortened.xlsx")
+```
+
+
+
+```{r}
+
+main_definition_vector <- c()
+sub_definition_vector <- c()
+construct_vector <-c()
+subconstruct_vector <- c()
+
+for(i in 1:nrow(data)){
+  
+# Finde the construct_id
+construct_id <- which(scale_definition$ID==data$ID[i])
+
+#Match main construct definition
+if(scale_definition[construct_id,2]%>%is.na()){
+  main_definition_vector <- c(main_definition_vector, NA)
+}else{
+  main_definition_vector <- c(main_definition_vector, scale_definition[construct_id,2])
+}
+    
+if(scale_definition[construct_id,4]%>%is.na()){
+  sub_definition_vector <- c(sub_definition_vector, NA)
+}else{
+  sub_definition_vector <- c(sub_definition_vector, scale_definition[construct_id,4])
+}
+
+if(scale_definition[construct_id,1]%>%is.na()){
+  construct_vector <- c(construct_vector, NA)
+}else{
+  construct_vector <- c(construct_vector, scale_definition[construct_id,1])
+}
+
+if(scale_definition[construct_id,3]%>%is.na()){
+  subconstruct_vector <- c(subconstruct_vector, NA)
+}else{
+  subconstruct_vector <- c(subconstruct_vector, scale_definition[construct_id,3])
+}
+  
+}
+
+
+data <- cbind(data,construct_vector,main_definition_vector,subconstruct_vector,sub_definition_vector)
+
+
+```
+
+# Analyse der Definitionenlaenge
+
+```{r}
+
+data$main_definition_vector %>% unique()%>% nchar()%>%describe()
+data$main_definition_vector %>% unique()%>%nchar()%>%na.omit()%>%ggdensity()#%>%ggsave(filename="main_nchar_old.png")
+# Ein ziemlicher "Knick" nach nchar >= 250
+
+# Vorher
+'   vars  n  mean    sd median trimmed   mad min max range skew kurtosis   se
+X1    1 91 170.1 82.93    166  163.27 80.06  29 422   393 0.73     0.28 8.69'
+
+#Nachher
+'   vars  n   mean    sd median trimmed   mad min max range skew kurtosis   se
+X1    1 92 167.45 75.72  166.5   163.3 82.28  29 349   320  0.4    -0.45 7.89'
+
+long_main_definiton <- which(nchar(data$main_definition_vector%>%unique())>=250)
+
+def_too_long <- (data$main_definition_vector%>%unique())[long_main_definiton]
+
+def_too_long
+
+#14 Hauptdefinitionen sind zu lang und werden, wenn moeglich angepasst.
+# Danach sind zwar immernoch 13 zu lange. Aber besser als vorher
+
+
+```
+```{r}
+
+data$sub_definition_vector %>% unique()%>% nchar()%>%describe()
+data$sub_definition_vector %>% unique()%>%nchar()%>%na.omit()%>%ggdensity()#%>%ggsave(filename="sub_nchar_old.png")
+# Ein ziemlicher "Knick" nach nchar >= 300
+
+# Vorher
+'   vars   n   mean   sd median trimmed   mad min max range skew kurtosis   se
+X1    1 143 167.92 98.3    147     155 90.44  23 510   487 1.21     1.39 8.22'
+
+# Nachher
+'   vars   n   mean    sd median trimmed   mad min max range skew kurtosis   se
+X1    1 143 153.83 72.13    147  150.24 81.54  23 387   364 0.49    -0.16 6.03'
+
+long_main_definiton <- which(nchar(data$sub_definition_vector%>%unique())>=300)
+
+def_too_long <- (data$sub_definition_vector%>%unique())[long_main_definiton]
+
+def_too_long
+
+#14 Subdefinitionen sind zu lang und werden, wenn moeglich angepasst.
+# Danach sind nur noch 4 zu lang.
+
+
+```
+

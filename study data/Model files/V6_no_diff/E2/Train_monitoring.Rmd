@@ -1,0 +1,55 @@
+
+# Packete installieren
+```{r}
+library(pacman)
+
+p_load(psych,tidyverse, stringr, rjson, reticulate, TTR
+       )
+```
+
+```{r}
+pd <- import("pandas")
+library(data.table)
+
+train_log <- pd$read_json("trainer_state.json")
+train_log_v5 <- pd$read_json("../../V5/checkpoint-760/trainer_state.json")
+
+log <- rbindlist(l = train_log$log_history,fill = TRUE)
+log_v5 <- rbindlist(l = train_log_v5$log_history,fill = TRUE)
+
+log <- log %>%
+  filter(loss!=0)
+
+compare_training <- lm(log$loss~log_v5$loss)
+
+log <- log %>%
+  mutate(sd= runSD(loss))
+log_v5 <- log_v5 %>%
+  mutate(sd= runSD(loss))
+
+
+log_combined <- data.frame(loss_v6=log$loss,loss_v5=log_v5$loss, sd_v5=log_v5$sd,sd_v6=log$sd,epoch=log$epoch)
+
+ggpubr::ggscatter(log_combined,y = "loss_v6",x="epoch", add="loess",cor.coef = TRUE)
+ggpubr::ggscatter(log_combined,y = "loss_v5",x="epoch", add="loess",cor.coef = TRUE)
+
+ggpubr::ggscatter(log_combined,x = "sd_v6",y="sd_v5", add="loess",cor.coef = TRUE)+
+  facet_wrap(~epoch)
+
+lm(data=log,loss~epoch)%>%summary()
+# 54%
+
+
+
+ggpubr::ggscatter(log,"epoch","loss",add = "reg.line")
+ggpubr::ggscatter(log,"epoch","loss",add = c("loess"))
+
+ggpubr::ggscatter(log,"epoch","sd",add = "loess", cor.coef = TRUE,cor.method = "spearman")
+#64.5%
+log%>%
+  filter(!is.na(sd))%>%
+lm(formula = sd~poly(epoch,3))%>%summary()
+# 77.46 %
+
+```
+

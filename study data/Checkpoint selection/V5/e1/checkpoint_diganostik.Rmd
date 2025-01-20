@@ -1,0 +1,241 @@
+# Packete laden
+
+```{r}
+library(pacman)
+
+p_load(
+  tidyverse,
+  stringr,
+  psych,
+  rjson,
+  reticulate
+)
+```
+
+
+
+```{r}
+pd <- import("pandas")
+
+data <- pd$read_json("bundled_results.json")
+
+data <- t(data)
+
+data <- data%>%
+  as.data.frame(row.names = c("12","13","23"))
+
+
+
+data_long <- data%>%
+  gather(key="time",value = "similarity",V1,V2,V3)
+
+data_long$similarity <- data_long$similarity%>%
+  as.numeric()
+
+
+data_long%>%
+  group_by(time)%>%
+  ggplot(aes(x=similarity))+
+  geom_density()+
+  facet_wrap(~time)+
+  papaja::theme_apa()
+
+
+data_long%>%
+  group_by(time)%>%
+  rstatix::get_summary_stats()
+
+```
+
+# Distanz innerhalb der Outputs
+
+```{r}
+data_in <- readxl::read_xlsx("../output_distances.xlsx")
+duplicates <- readxl::read_xlsx("../duplicate_items.xlsx")
+min_original_dist <- readxl::read_xlsx("../distances_min_list.xlsx")
+data_no_diff <- readxl::read_xlsx("output_distances_no_diff.xlsx")
+duplicates_no_diff <- readxl::read_xlsx("duplicate_items_no_diff.xlsx")
+min_original_dist_no_diff <- readxl::read_xlsx("distances_min_list_no_diff.xlsx")
+```
+
+
+```{r}
+# duplicate frames & min distances berechnen
+
+duplicates <- duplicates[,-1]
+duplicates_no_diff <- duplicates_no_diff[,-1]
+
+min_original_dist <- min_original_dist[,-1]
+min_original_dist_no_diff <- min_original_dist_no_diff[,-1]
+
+n_dupes <- colSums(duplicates,na.rm = TRUE)%>%unname()
+n_dupes_no_diff <- colSums(duplicates_no_diff,na.rm = TRUE)%>%unname()
+
+describe(n_dupes)
+
+'   vars   n mean   sd median trimmed  mad min max range skew kurtosis   se
+X1    1 180 1.25 1.06      1    1.15 1.48   0   5     5 0.66     0.02 0.08'
+
+describe(n_dupes_no_diff)
+
+'   vars  n mean   sd median trimmed mad min max range skew kurtosis   se
+X1    1 20  0.7 1.42      0    0.38   0   0   5     5 1.77        2 0.32'
+
+
+mean_min_dist <- apply(min_original_dist,FUN = mean,na.rm=TRUE,MARGIN = 2)%>%unname()
+mean_min_dist_no_diff <- apply(min_original_dist_no_diff,FUN = mean,na.rm=TRUE,MARGIN = 2)%>%unname()
+
+t.test(mean_min_dist,mean_min_dist_no_diff,var.equal = FALSE)
+
+describe(mean_min_dist)
+'  vars   n  mean   sd median trimmed  mad   min   max range skew kurtosis   se
+X1    1 180 34.94 6.99  34.11   34.64 7.38 19.33 55.33    36 0.38    -0.32 0.52'
+
+describe(mean_min_dist_no_diff)
+' vars  n  mean    sd median trimmed   mad   min  max range  skew kurtosis   se
+X1    1 20 37.38 14.65   39.3   38.34 10.13 10.47 58.8 48.33 -0.66    -0.74 3.27'
+
+```
+
+
+```{r}
+colnames(data_in) <- c("prompt","dist")
+colnames(data_no_diff) <- c("prompt","dist")
+
+
+data_in <- data_in[1:180,]
+data_no_diff <- data_in[1:20,]
+
+data_in <- cbind(data_in,n_dupes=n_dupes,mean_min_dist=mean_min_dist)
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+keepstrRight <- function(x, n){
+  substr(x, 1, nchar(x)-n)
+}
+
+post_fix <- data_in$prompt%>%substrRight(n = 1)%>%as.factor()
+
+data_in <- data_in[1:180,]
+
+data_in <- cbind(data_in,time= post_fix[1:180])
+
+data_in$prompt <- data_in$prompt%>%
+  keepstrRight(n=2)
+
+
+t_09 <- grepl(data_in$prompt,pattern='temperature_0.9')
+t_13 <- grepl(data_in$prompt,pattern='temperature_1.3')
+
+temp = rep(NA,180)
+
+temp[t_09] <- "T9"
+temp[t_13] <- "T13"
+
+data_in <- cbind(data_in,temp=temp%>%as.factor())
+
+diff = rep(NA,180)
+
+diff_n <- grepl(data_in$prompt,pattern='difficulty_NA')
+diff_1 <- grepl(data_in$prompt,pattern='difficulty_1')
+
+diff[diff_n] <- "NA"
+diff[diff_1] <- "1"
+diff[!diff_1] <- "5"
+
+data_in <- cbind(data_in,diff=as.factor(diff))
+
+inverted = rep(NA,180)
+
+inverted_t <- grepl(data_in$prompt,pattern='invert_TRUE')
+
+inverted[inverted_t] <- "TRUE"
+inverted[!inverted_t] <- "FALSE"
+
+data_in <- cbind(data_in,inverted=as.factor(inverted))
+
+
+data_in$prompt <- substr(data_in$prompt,1,8)
+
+
+data_in%>%
+  group_by(time)%>%
+  rstatix::get_summary_stats()
+
+'aov_times <- data_in%>%
+  rstatix::anova_test(dv=dist,within = time,wid = prompt)
+
+rstatix::get_anova_table(aov_times)
+
+data_in%>%
+  group_by(time)%>%
+  select(time,dist)%>%
+  ggpubr::ggdensity(x = "dist",facet.by = "time")
+
+ggpubr::ggqqplot(data_in,"dist",facet.by = "time")'
+```
+
+
+# Fit a random effect model
+```{r}
+library(lme4)
+library(lmerTest)
+
+model_dist <- lmer(dist ~ time + temp + diff + inverted+ (1 | prompt), data = data_in)
+summary(model_dist)
+anova(model_dist)
+
+
+intercept_only <- lmer(dist~1+(1|prompt),data = data_in)
+intercept_only
+summary(intercept_only)
+#0.6646341 % der Varianz wird durch die Prompt erklaert
+
+pairs.panels(data_in)
+```
+
+# Repeat multi level model for number of dupes
+```{r}
+model_n_dupes <- glmer(n_dupes ~ time + temp + diff + inverted+ (1 | prompt), data = data_in,family="poisson")
+summary(model_n_dupes)
+anova(model_n_dupes)
+
+
+intercept_only <- glmer(n_dupes~1+(1|prompt),data = data_in,family="poisson")
+intercept_only
+summary(intercept_only)
+var(data_in$n_dupes)
+(0.007928)/1.127095
+#7.24% erklaert durch Unterschiede in Prompts?
+# (1.127095-0.08169 )/1.127095
+```
+# Check influence for the mean min distance
+
+```{r}
+model_mean_min_dist <- lmer(mean_min_dist ~ time + temp + diff + inverted+ (1 | prompt), data = data_in)
+summary(model_mean_min_dist)
+anova(model_mean_min_dist)
+
+
+intercept_only <- lmer(mean_min_dist~1+(1|prompt),data = data_in)
+intercept_only
+summary(intercept_only)
+```
+
+```{r}
+data_in%>%
+  group_by(time,prompt)%>%
+  select(n_dupes,time,prompt)%>%
+  rstatix::get_summary_stats()
+
+data_in%>%
+  group_by(time,prompt)%>%
+  select(mean_min_dist,time,prompt)%>%
+  rstatix::get_summary_stats()
+
+
+```
+
+

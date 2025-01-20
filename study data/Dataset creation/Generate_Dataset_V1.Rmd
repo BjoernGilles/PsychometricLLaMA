@@ -1,0 +1,557 @@
+
+# Skript zur erstellung der LLM-Prompts
+## Pakete laden
+
+```{r}
+library(pacman)
+p_load(
+  psych,
+  tidyverse,
+  stringr,
+  textclean,
+  openxlsx,
+  ggpubr
+)
+```
+
+
+# Daten einlesen
+```{r}
+data <- read.xlsx("./SRC/Eigener Datensatz/Data_Training.xlsx")
+scale_definition <- read.xlsx("./SRC/Eigener Datensatz/Skalen_Definitionen_shortened.xlsx")
+load("./SRC/Datenbank_Hommel/hommel_items_full_2.RDS")
+ipip_items <- read.xlsx("./SRC/IPIP/IPIP_Items_shortened.xlsx")
+```
+
+# Schwierigkeit skalieren
+
+```{r}
+data$Item %>% grepl(pattern=("\\(R\\)"),ignore.case = T)%>%table()
+
+data$Mittelwert <- data$Mittelwert%>%as.numeric()
+scale_ranges <- scale_definition$Skalenrange%>%str_split(pattern = ";",simplify = TRUE)
+
+scale_ranges_max <-  apply(FUN = max,scale_ranges,MARGIN = 1)%>%as.numeric()
+scale_ranges_max <- 1/scale_ranges_max
+
+scale_definition <- cbind(scale_definition,scale_ranges_max)
+
+
+difficulty_vector <- c()
+
+for(i in 1:nrow(data)){
+  
+  if(is.na(data$Mittelwert[i])){
+    difficulty_vector <- c(difficulty_vector,NA)
+  }else{
+    construct_id <- which(scale_definition$ID==data$ID[i])
+    difficulty <- data$Mittelwert[i]*scale_definition$scale_ranges_max[construct_id]
+    difficulty_vector <- c(difficulty_vector,difficulty)
+  }
+  
+}
+difficulty_vector <- difficulty_vector%>%round(digits = 2)
+data <- cbind(data, difficulty= difficulty_vector)
+```
+
+# Extract Construct definitions for all the Items
+```{r}
+
+main_definition_vector <- c()
+sub_definition_vector <- c()
+construct_vector <-c()
+subconstruct_vector <- c()
+
+for(i in 1:nrow(data)){
+  
+# Fin the construct_id
+construct_id <- which(scale_definition$ID==data$ID[i])
+
+#Match main construct definition
+if(scale_definition[construct_id,2]%>%is.na()){
+  main_definition_vector <- c(main_definition_vector, NA)
+}else{
+  main_definition_vector <- c(main_definition_vector, scale_definition[construct_id,2])
+}
+    
+if(scale_definition[construct_id,4]%>%is.na()){
+  sub_definition_vector <- c(sub_definition_vector, NA)
+}else{
+  sub_definition_vector <- c(sub_definition_vector, scale_definition[construct_id,4])
+}
+
+if(scale_definition[construct_id,1]%>%is.na()){
+  construct_vector <- c(construct_vector, NA)
+}else{
+  construct_vector <- c(construct_vector, scale_definition[construct_id,1])
+}
+
+if(scale_definition[construct_id,3]%>%is.na()){
+  subconstruct_vector <- c(subconstruct_vector, NA)
+}else{
+  subconstruct_vector <- c(subconstruct_vector, scale_definition[construct_id,3])
+}
+  
+}
+
+
+data <- cbind(data,construct_vector,main_definition_vector,subconstruct_vector,sub_definition_vector)
+```
+
+
+# Die Items von Björn Hommel hinzufügen
+
+```{r}
+output <- output%>%
+  filter(!is.na(scale_name))
+
+data_hommel <-
+  data.frame(
+    Item = output$item,
+    difficulty = (output$difficulty%>%round(digits = 2)),
+    construct_vector = output$scale_name,
+    main_definition_vector = rep(NA, 5977),
+    subconstruct_vector = rep(NA, 5977),
+    sub_definition_vector = rep(NA, 5977)
+  )
+data <- data[,-c(2,3)]
+data <- rbind(data,data_hommel)
+```
+
+# IPIP Items hinzufügen
+```{r}
+# Function converting to lower or upper Case the first letter of each string
+
+str_start_to_lower <- function(string){
+  string <- stringr::str_squish(string)
+  string <- paste(tolower(substr(string, 1, 1)), substr(string, 2, nchar(string)), sep="")
+  return(string)
+}
+
+str_start_to_upper <- function(string){
+  string <- stringr::str_squish(string)
+  string <- paste(toupper(substr(string, 1, 1)), substr(string, 2, nchar(string)), sep="")
+  return(string)
+}
+
+# Skalen mit einem Alpha von <= .60 entfernen
+
+(ipip_items$alpha<=.60) %>% which() %>% length()
+
+# 83 Items stammen aus Skalen mit einem niedrigem Alpha
+# Diese werden entfernt
+
+ipip_low_alpha <- (ipip_items$alpha<=.60) %>% which()
+
+ipip_items <- ipip_items[-ipip_low_alpha,]
+
+
+
+
+# Changing the first letter to lower case
+ipip_items$text <- sapply(ipip_items$text,FUN=str_start_to_lower)
+  
+# Adding I
+ipip_items$text <- paste("I",ipip_items$text)
+
+for(i in 1:nrow(ipip_items)){
+  if(ipip_items$key[i]==-1){
+    
+    
+   ipip_items$text[i] <-  ipip_items$text[i]%>%
+     str_replace(pattern = "\\.",replacement = " (R)\\.")
+    
+  }
+  
+}
+
+
+ipip_labels <- ipip_items$label%>%str_split(pattern = ",")
+(lapply(ipip_labels,FUN = length)>=2) %>% which()%>%length()
+# 35 Items haben Subskalen
+
+#Aufteilen in Main und Subkonstrukt
+ipip_main_construct <- sapply(ipip_labels,FUN=function(x)x[1])
+ipip_sub_construct <- sapply(ipip_labels,FUN=function(x)x[2])
+
+
+data_ipip <-
+  data.frame(
+    Item = ipip_items$text,
+    difficulty = rep(NA, 3430),
+    construct_vector = ipip_main_construct,
+    main_definition_vector = rep(NA, 3430),
+    subconstruct_vector = ipip_sub_construct,
+    sub_definition_vector = rep(NA, 3430)
+  )
+
+data <- rbind(data,data_ipip)
+```
+
+
+
+# Text cleaning
+```{r}
+# Function for standartizing the definitions
+clean_definition <- function(x){
+  clean <- x %>% textclean::add_missing_endmark(replacement = ".")
+  clean <- clean%>%str_replace_all(pattern = "\\([^()]*\\d+[^()]*\\)",replacement = "")
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_sentence()
+  
+  
+  
+  return(clean)
+}
+
+# Function for standartizing items
+clean_items <- function(x){
+  clean <- x %>% textclean::add_missing_endmark(replacement = ".")
+  clean <- clean%>%str_replace_all(pattern = "\\. \\(R\\)\\.",replacement = " (r).")
+  clean <- clean%>%str_replace_all(pattern = "\\(R\\)",replacement = "(r)")
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_sentence()
+  
+  
+  return(clean)
+}
+# Function for standartizing construct labels
+
+clean_labels <- function(x){
+  clean <- x
+  clean <- clean%>%stringr::str_squish()
+  clean <- clean%>%str_to_title()
+  
+  
+  return(clean)
+}
+
+# Use the functions
+data$main_definition_vector <- data$main_definition_vector%>%clean_definition()
+data$sub_definition_vector <- data$sub_definition_vector%>%clean_definition()
+data$Item <- data$Item%>%clean_items()
+data$construct_vector <- data$construct_vector %>% clean_labels()
+data$subconstruct_vector <- data$subconstruct_vector %>% clean_labels()
+
+
+data <- apply(data,MARGIN = c(1,2),FUN=function(clean){if(is.na(clean)|(clean%in%c("Na.","NA","Na","NA."))){
+    clean <- "NA"
+  }else{clean}})%>%as.data.frame()
+```
+
+
+## Unvollstaendige Items entfernen
+
+```{r}
+
+self_word <-  grepl(data$Item,pattern="\\b(I|i|me|Me|myself|Myself|My|my)\\b")
+n_word_over_4 <- grepl(data$Item,pattern="\\b\\w+\\b.*\\b\\w+\\b.*\\b\\w+\\b.*\\b\\w+\\b")
+
+exclude <- !self_word & !n_word_over_4
+
+which(exclude)%>%length()
+#67
+
+data <- data[!exclude,]
+```
+
+
+
+## Deduplizieren
+
+```{r}
+
+
+construct_table <-
+  (paste(data$construct_vector, data$subconstruct_vector) %>% table())
+sorted_construct_table <-
+  construct_table[construct_table %>% order(decreasing = TRUE)]
+sorted_construct_table[1:40]
+ggdensity(sorted_construct_table %>% c(), )
+
+sorted_construct_table %>% c() %>% describe()
+# Die 395 Konstrukte/Subkonstrukte haben im Median 9 Items. Im Mittelwert hingegen 20. Das Maximum ist 1258.
+# Balancieren sollte helfen die Daten zu verbessern
+# Insbesondere die folgenden Konstrukte kommen extrem haeufig vor:
+
+'Extraversion NA                            Conscientiousness NA
+                                           1258                                             466
+                               Agreeableness NA                          Emotional Stability NA
+                                            427                                             250
+                                     Empathy NA                                  Neuroticism NA
+                                            202                                             199
+                                 Imagination NA                                           NA NA
+                                            178                                             124
+                                 Sociability NA                           Need For Cognition NA
+                                            115 '
+# Daher wird ein Cut-Off von 100 Items pro construct getestet.
+
+#too_frequent_constructs <- sorted_construct_table[which(sorted_construct_table>=100)]%>%names()
+
+#data$id <- 1:10703
+
+data <- data %>%
+  group_by(construct_vector, subconstruct_vector) %>%
+  slice({
+    o <-
+      order(!(main_definition_vector == "NA"),
+            !(difficulty == "NA"),
+            decreasing = TRUE)
+    head(o, min(length(o), 100))
+  })
+
+
+data <- data %>% unique()
+
+```
+
+#Haeufige Items entfernen
+```{r}
+
+
+# Zu haeufige Items entfernen.
+item_table <- data$Item %>% table()
+(item_table[order(item_table, decreasing = TRUE)] > 5) %>% which() %>% length()
+# 86 Items kommen mehr als 5 mal vor.
+
+over_5_reps <-
+  (item_table[order(item_table, decreasing = TRUE)] > 5) %>% which()
+common_items <-
+  item_table[order(item_table, decreasing = TRUE)][over_5_reps] %>% names()
+
+
+
+data <- data %>%
+  group_by(Item) %>%
+  slice({
+    o <-
+      order(!(main_definition_vector == "NA"),
+            !(difficulty == "NA"),
+            decreasing = TRUE)
+    head(o, min(length(o), 5))
+  })
+
+
+
+```
+# Konstrukte mit zu wenigen Items entfernen
+
+```{r}
+less_than_two <-  data$construct_vector %>% table() < 3
+less_than_two %>% which() %>% length()
+
+c_names <- less_than_two %>% names()
+c_names_exclude <- c_names[which(less_than_two)]
+
+data <- data %>%
+  filter(!construct_vector %in% c_names_exclude)
+
+# Konstrukte mit zu wenig Item, welche entfernt wurden
+' [1] "Abasement"           "Absorption"          "Aesthetics"          "Ambition"            "Communality"         "Entertaining"
+ [7] "Language Mastery"    "Responsive Distress" "Self-Forgetful"      "Teamwork"            "Virtuous"            "Wisdom" '
+```
+
+
+
+
+# Dataset stats
+```{r}
+data$Item %>% unique() %>% length()
+# 4225
+
+
+data$construct_vector %>% unique() %>% length()
+# 372
+
+data$main_definition_vector %>% unique() %>% length()
+# 93 Constructs with main definition
+
+
+data$sub_definition_vector %>% unique() %>% length()
+# 144 Subconstructs with definition
+
+(!data$difficulty == "NA") %>% which %>% length()
+# 2283 Schwierigkeitsangaben fuer Items
+
+
+
+
+```
+
+# Schwierigkeit klassifizieren
+```{r,eval=FALSE,include=FALSE}
+# Funktioniert nicht mehr, weil NAs jetzt als string gespeichert sind.
+data$difficulty <- data$difficulty%>%
+  as.numeric()
+
+rm(difficulty)
+
+data$difficulty %>%
+  describe(na.rm = TRUE)
+
+
+data$difficulty_3 <- ntile(data$difficulty,3)
+cor(data$difficulty,data$difficulty_3,method = "kendall",use = "pairwise.complete.obs")
+# 0.8257292
+
+data$difficulty_4 <- ntile(data$difficulty,4)
+
+cor(data$difficulty,data$difficulty_4,method = "kendall",use = "pairwise.complete.obs")
+# 0.8756981
+
+data$difficulty_5 <- ntile(data$difficulty,5)
+
+cor(data$difficulty,data$difficulty_5,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9035908
+
+data$difficulty_7 <- ntile(data$difficulty,7)
+
+cor(data$difficulty,data$difficulty_7,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9357663
+
+data$difficulty_10 <- ntile(data$difficulty,10)
+
+cor(data$difficulty,data$difficulty_10,method = "kendall",use = "pairwise.complete.obs")
+
+# 0.9574142
+
+data%>%
+  select(difficulty,difficulty_3)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_3)%>%
+  get_summary_stats()
+
+' difficulty_3 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty  1074  0.22  0.57   0.5   0.44  0.54  0.1  0.059 0.486 0.066 0.002 0.004
+2            2 difficulty  1074  0.57  0.69   0.63  0.6   0.66  0.06 0.044 0.63  0.033 0.001 0.002
+3            3 difficulty  1073  0.69  0.92   0.74  0.72  0.78  0.06 0.044 0.752 0.045 0.001 0.003'
+
+data%>%
+  select(difficulty,difficulty_5)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_5)%>%
+  get_summary_stats()
+
+' difficulty_5 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty   645  0.22  0.52   0.46  0.42  0.49  0.07 0.059 0.447 0.057 0.002 0.004
+2            2 difficulty   644  0.52  0.6    0.56  0.54  0.58  0.04 0.03  0.558 0.024 0.001 0.002
+3            3 difficulty   644  0.6   0.66   0.63  0.61  0.65  0.04 0.03  0.63  0.02  0.001 0.002
+4            4 difficulty   644  0.66  0.73   0.7   0.68  0.72  0.04 0.03  0.698 0.02  0.001 0.002
+5            5 difficulty   644  0.73  0.92   0.77  0.75  0.8   0.05 0.03  0.78  0.036 0.001 0.003'
+
+data%>%
+  select(difficulty,difficulty_7)%>%
+  filter(!is.na(difficulty))%>%
+  group_by(difficulty_7)%>%
+  get_summary_stats()
+
+' difficulty_7 variable       n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+         <int> <chr>      <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1            1 difficulty   461  0.22  0.49   0.44  0.4   0.47  0.07 0.044 0.425 0.052 0.002 0.005
+2            2 difficulty   460  0.49  0.55   0.52  0.51  0.54  0.03 0.03  0.522 0.019 0.001 0.002
+3            3 difficulty   460  0.55  0.61   0.58  0.57  0.59  0.02 0.015 0.581 0.015 0.001 0.001
+4            4 difficulty   460  0.61  0.66   0.63  0.62  0.64  0.02 0.015 0.63  0.014 0.001 0.001
+5            5 difficulty   460  0.66  0.7    0.68  0.67  0.69  0.02 0.015 0.678 0.013 0.001 0.001
+6            6 difficulty   460  0.7   0.76   0.73  0.72  0.74  0.02 0.015 0.728 0.015 0.001 0.001
+7            7 difficulty   460  0.76  0.92   0.79  0.77  0.81  0.04 0.03  0.795 0.032 0.001 0.003'
+
+```
+
+# Klassen hinzufuegen
+
+```{r}
+data_w_difficutlies <- data %>%
+  filter(difficulty != "NA") %>% mutate(difficulty = as.numeric(difficulty)) 
+
+data_w_o_difficutlies <- data %>%
+  filter(difficulty == "NA") 
+
+data_w_difficutlies <- data_w_difficutlies%>%
+  mutate(difficulty=as.character(ntile(difficulty,5)))
+
+data <- rbind(data_w_difficutlies,data_w_o_difficutlies)
+
+
+data_no_definition<- data%>%filter(main_definition_vector=="NA"&sub_definition_vector=="NA"&difficulty!="NA")
+
+data_no_definition <- data_no_definition %>%
+  group_by(Item,construct_vector)%>%
+  slice_sample(n = 1)
+
+data_the_rest<- data%>%filter(main_definition_vector!="NA"|sub_definition_vector!="NA"|difficulty=="NA")
+  
+data <- rbind(data_no_definition,data_the_rest)
+```
+
+# Invertierung als zusaetzliche Spalte einfuegen
+```{r}
+
+data <- data%>%
+  mutate(inverted=grepl(Item,pattern="\\(r\\)"))
+
+data <- data%>%
+  mutate(Item=str_remove_all(Item,pattern=" \\(r\\)"))
+
+data <- data[sample(1:nrow(data),replace = FALSE),]
+
+which(data$inverted)%>%length()
+# 1408
+
+data$subconstruct_vector%>%na.omit()%>%table()%>%length()
+
+```
+
+
+# Daten in Prompt-Format überführen.
+```{r}
+format_prompt <- function(x){
+  paste("###Construct:",x$construct_vector, "\n", "###C_definition:", x$main_definition_vector, "\n","###Subconstruct:",
+        x$subconstruct_vector,"\n","###S_defintion:",x$sub_definition_vector, "\n",
+        "###Difficulty:",x$difficulty, "\n",
+        "###Inverted:",x$inverted, "\n",
+        "###Item:")%>%return()
+}
+
+format_prompt_no_diff <- function(x){
+  paste("###Construct:",x$construct_vector, "\n", "###C_definition:", x$main_definition_vector, "\n","###Subconstruct:",
+        x$subconstruct_vector,"\n","###S_defintion:",x$sub_definition_vector, "\n",
+        "###Inverted:",x$inverted, "\n",
+        "###Item:")%>%return()
+}
+
+prompt_vector <- format_prompt(data)
+
+prompt_vector_no_diff<- format_prompt_no_diff(data)
+
+dataset <- data.frame(input=prompt_vector,output=data$Item)
+
+dataset_no_diff <- data.frame(input=prompt_vector_no_diff,output=data$Item)
+
+
+prompt_vector%>%nchar()%>%ggdensity()
+
+prompt_vector%>%nchar()%>%describe()
+
+'  vars    n   mean    sd median trimmed   mad min  max range skew kurtosis   se
+X1    1 8176 305.42 124.9    261  273.04 26.69 219 1113   894 2.94     8.81 1.38'
+
+'   vars    n   mean     sd median trimmed  mad min max range skew kurtosis   se
+X1    1 6257 197.69 120.78    147  164.43 7.41 136 751   615 2.51      5.5 1.53'
+
+
+dataset$input %>% nchar() %>% describe()
+# 987
+
+dataset$output %>% nchar() %>% describe()
+# 184
+
+
+
+
+#write.csv(dataset,file = "data_10092023.csv",fileEncoding = "utf-8",quote = TRUE,row.names = FALSE)
+#write.xlsx(dataset,file = "data_10092023.xlsx")
+```

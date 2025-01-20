@@ -1,0 +1,78 @@
+item,inverted,construct,difficulty,train_similarity,internal_similarity,valid_content
+ I am shy and timid.,True,extraversion,1,67,78,1
+ I am not the life of the party.,True,extraversion,5,85,87,1
+ I rarely talk a lot.,True,extraversion,3,83,77,1
+ I am not really interested in social interactions.,True,extraversion,3,69,77,1
+ I am not known for being a very talkative person.,True,extraversion,3,73,85,1
+ I’m usually the life of the party.,False,extraversion,1,88,80,1
+ I am someone who has an abundance of energy.,False,extraversion,5,71,77,1
+ I have a lot of friends.,False,extraversion,3,83,78,1
+" I am a person who is active, dynamic and energetic.",False,extraversion,3,79,70,1
+ I love to talk.,False,extraversion,3,79,71,1
+ I have difficulty getting started on tasks.,True,conscientiousness,1,79,74,1
+ I am not a very organized person.,True,conscientiousness,5,75,78,1
+ I am disorganized.,True,conscientiousness,3,88,88,1
+ I am someone who has difficulty starting tasks.,True,conscientiousness,3,76,72,1
+ I am someone who acts without thinking.,True,conscientiousness,3,77,76,1
+ I am someone who makes plans.,False,conscientiousness,1,75,86,1
+ I see myself as someone who is very organized.,False,conscientiousness,5,79,83,1
+ I do not like to leave things unfinished.,False,conscientiousness,3,81,73,1
+ I like to keep things tidy.,False,conscientiousness,3,83,73,1
+ I am someone who can be counted on to do her duty.,False,conscientiousness,3,74,69,1
+ I am a happy person.,True,neuroticism,1,79,79,1
+ I am a happy-go-lucky person.,True,neuroticism,5,69,71,1
+ I am able to manage my worries.,True,neuroticism,3,67,67,1
+ I feel that i am a relaxed person.,True,neuroticism,3,74,73,1
+ I am someone who remains calm in tense situations.,True,neuroticism,3,80,84,1
+ I worry about things that turn out not to be important.,False,neuroticism,1,76,73,1
+ I'm an anxious person.,False,neuroticism,5,71,76,1
+ I am full of doubts about myself.,False,neuroticism,3,75,72,1
+ I am a moody person.,False,neuroticism,3,79,79,1
+ I am a worrying person.,False,neuroticism,3,76,89,1
+ I am sometimes wary of others’ motives.,True,agreeableness,1,75,68,1
+ I am mean to people who are kind to me.,True,agreeableness,5,71,76,1
+ I dislike people who are weak and in need of protection.,True,agreeableness,3,76,73,1
+ I am not a particularly trusting person.,True,agreeableness,3,75,72,1
+ I am a nasty person.,True,agreeableness,3,84,84,1
+ I can show affection to others.,False,agreeableness,1,77,74,1
+ I care a lot about the needy.,False,agreeableness,5,84,72,1
+ I am someone who is very kind-hearted and soft-hearted.,False,agreeableness,3,68,86,1
+ I take no pleasure in another’s misfortune.,False,agreeableness,3,69,59,1
+ I am an understanding person.,False,agreeableness,3,76,79,1
+ I do not have an artistic side.,True,openness,1,77,71,1
+ I do not understand people who get excited about going to art museums.,True,openness,5,75,78,1
+ I enjoy thinking up new ways of doing things.,False,openness,1,80,68,1
+ I am a true original.,False,openness,5,80,70,1
+ I tend to be more curious than others.,False,openness,3,71,70,1
+ I tend to think of myself as someone who is a curious person.,False,openness,3,75,75,1
+" I think of myself as someone who is full of ideas, and can come up with new ways of looking at things.",False,openness,3,83,67,1
+ I prefer to stick to my plans.,False,need_for_closure_1,1,73,81,1
+ I prefer a well-ordered environment.,False,need_for_closure_1,1,67,74,1
+ I feel more comfortable with well-defined situations.,False,need_for_closure_1,5,75,65,1
+ I prefer order over chaos.,False,need_for_closure_1,5,72,72,1
+" I would prefer a job where the rules and procedures are clearly defined, to a job where rules are unclear.",False,need_for_closure_1,3,75,61,1
+ Order is a source of comfort to me.,False,need_for_closure_1,3,71,59,1
+ The future should be predictable.,False,need_for_closure_2,1,68,69,1
+ I can’t stand it when people make changes to plans without first telling me.,False,need_for_closure_2,1,77,64,1
+ I am happier when things are predictable and regular.,False,need_for_closure_2,5,67,72,1
+ The unknown scares me.,False,need_for_closure_2,5,68,62,1
+ I like when things proceed according to plan.,False,need_for_closure_2,3,86,71,1
+ I like a schedule.,False,need_for_closure_2,3,75,76,1
+ I love certainty.,False,need_for_closure_3,1,77,81,1
+ I would not be able to function if everything were left open and unresolved.,False,need_for_closure_3,1,71,69,1
+ I prefer to avoid situations where i cannot make a rational decision.,False,need_for_closure_3,5,81,66,1
+ A decision is better than no decision.,False,need_for_closure_3,5,72,86,1
+ I prefer to deal with a certain outcome over not knowing the outcome.,False,need_for_closure_3,3,67,68,1
+ I am a decisive person.,False,need_for_closure_3,3,82,73,1
+ I have difficulty making important decisions without having enough information to be sure of making the right decision.,False,need_for_closure_4,1,69,69,1
+ I dislike situations where the outcome is uncertain.,False,need_for_closure_4,1,76,73,1
+ I can not handle many options.,False,need_for_closure_4,5,72,66,1
+ I have a strong dislike of situations where the outcome is not predictable.,False,need_for_closure_4,5,71,69,1
+ I like to know why something happens.,False,need_for_closure_4,3,78,69,1
+ I avoid topics that cannot be resolved.,False,need_for_closure_4,3,67,69,1
+ I am annoyed if people don’t understand my way of thinking.,False,need_for_closure_5,1,76,66,1
+ I do not like people whose opinions and attitudes are very different from my own.,False,need_for_closure_5,1,77,70,1
+" When dealing with something that is important to me, i feel uneasy about the possibility that new information will be contradicting my current knowledge.",False,need_for_closure_5,5,70,68,1
+ I am convinced that i am right when i feel so.,False,need_for_closure_5,5,71,62,1
+ I always know my position.,False,need_for_closure_5,3,72,80,1
+ I tend to think the same way as most of my friends.,False,need_for_closure_5,3,78,74,1

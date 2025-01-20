@@ -1,0 +1,721 @@
+# Script for the Analysis of the data of the main Survey
+
+Load the necessary packages and the data
+
+```{r}
+library(pacman)
+
+p_load(
+  tidyverse,
+  openxlsx,
+  psych,
+  paran,
+  stringr,
+  ppcor,
+  rstanarm,
+  modelsummary
+)
+
+```
+
+```{r}
+data_path_ger = ".//Sources/MA_Erhebung_Deutsch_27.+Dezember+2023_07.52.csv"
+data_path_eng = ".//Sources/MA_Erhebung_Prolific_27.+Dezember+2023_10.04.csv"
+
+source("Scripts/pre_processing.R")
+```
+
+
+# Items Statistics
+
+```{r}
+items_no_kern$internal_similarity%>%describe()
+'   vars  n  mean   sd median trimmed  mad min max range skew kurtosis  se
+X1    1 77 74.53 7.03     73   74.21 5.93  61  89    28 0.47    -0.68 0.8'
+
+items_no_kern$train_similarity%>%describe()
+'   vars  n  mean   sd median trimmed  mad min max range skew kurtosis   se
+X1    1 77 75.88 5.51     75    75.6 5.93  65  89    24 0.38    -0.46 0.63'
+
+```
+
+
+
+# Demographics
+
+```{r}
+data$country %>% table() %>%prop.table()
+# Distribution by Country (Count):
+# England: 99
+# Germany: 48
+
+# Distribution by Country (Percentage):
+# England: 67.3%
+# Germany: 32.7%
+
+
+data$utm_source%>%table() %>%prop.table()%>%round(3)*100
+
+
+# Source of participants (Count):
+# Whatsapp: 22
+# Facebook: 6
+# Instagram: 4
+# LinkedIn: 16
+
+# Source of participants (Percentage):
+# Whatsapp: 45.8%
+# Facebook: 12.5%
+# Instagram: 8.3%
+# LinkedIn: 33.3%
+
+data$Q125 %>% factor(levels = c(1,2,3,4,5,6,7),labels = c("17 oder jünger","18-20","21-29","30-39","40-49","50-59","60 oder älter"))%>% table() %>%prop.table()
+
+# Age Distribution (Count):
+# 17 or younger: 0
+# 18-20: 3
+# 21-29: 51
+# 30-39: 30
+# 40-49: 25
+# 50-59: 24
+# 60 or older: 14
+
+# Age Distribution (Percentage):
+# 17 or younger: 0.0%
+# 18-20: 2.0%
+# 21-29: 34.7%
+# 30-39: 20.4%
+# 40-49: 17.0%
+# 50-59: 16.3%
+# 60 or older: 9.5%
+
+
+data$Q126 %>% factor(levels = c(1,2,3,4),labels = c("weiblich","männlich","Ich möchte keine Zuordnung vornehmen.","divers"))%>% table() %>%prop.table()%>%round(3)*100
+
+# Gender Distribution (Count):
+# Female: 78
+# Male: 66
+# Prefer not to specify: 0
+# Non-binary: 3
+
+# Gender Distribution (Percentage):
+# Female: 53.1%
+# Male: 44.9%
+# Prefer not to specify: 0.0%
+# Non-binary: 2.0%
+
+
+data$SQ06 %>% factor(levels = c(1,2,3,4,5,6),labels = c("Hochschulabschluss","Fachhochschulabschluss","Fachhochschulreife/ Abitur","Mittlere Reife","Hauptschulabschluss","kein Abschluss"))%>% table() %>%prop.table()%>%round(3)*100
+
+# Education Level                               Count   Percentage
+# --------------------------------------------------------------
+# University Degree                               27        56.2
+# University of Applied Sciences Degree            5        10.4
+# University Entrance Qualification / Abitur       14        29.2
+# Intermediate Education (High School)             2         4.2
+# Secondary School Certificate                      0         0.0
+# No Education                                     0         0.0
+
+
+data$Q22%>% factor(levels = c(2,4,5,7,8,9),labels = c("Completed primary school education","Completed secondary school education","Vocational school or similar","University, Bachelors degree","University or professional degree (MA, MS, MBA, PhD, JD, MD, DDS)","None"))%>% table() %>%prop.table()%>%round(3)*100
+
+'                               Completed primary school education 
+                                                                1 
+                             Completed secondary school education 
+                                                               24 
+                                     Vocational school or similar 
+                                                               17 
+                                     University, Bachelors degree 
+                                                               44 
+University or professional degree (MA, MS, MBA, PhD, JD, MD, DDS) 
+                                                               13 
+                                                             None 
+                                                                0'
+
+
+# Do you work?
+data$SQ09 %>% factor(levels = c(1,0),labels = c("Ja","Nein"))%>% table() %>%prop.table()%>%round(3)*100
+# Employment Status (Count):
+# Yes: 116
+# No: 31
+
+# Employment Status (Percentage):
+# Yes: 78.9%
+# No: 21.1%
+
+# Working hours
+data$SQ09_1_1 %>% describe()
+
+'   vars   n mean    sd median trimmed   mad min max range  skew kurtosis   se
+X1    1 147 25.4 16.31     31   26.03 14.83   1  47    46 -0.39    -1.44 1.35'
+```
+
+
+
+# Compare english and german data
+
+```{r}
+sum_values_ger <- colMeans(data[data$country=="Germany",13:114])
+sum_values_en <- colMeans((data[data$country=="England",13:114]))
+
+cor.test(sum_values_ger,sum_values_en,method = "pearson")
+
+
+```
+
+
+
+# Select Items for the scales
+
+
+```{r}
+fa_ocean <- fa(ocean_ai_gen, nfactors = 5, rotate = "oblimin", fm = "pa")
+print(fa_ocean, digits = 2, sort = TRUE, cut = 0.2)
+# " I do not like to be of service to others." 0.23
+
+ocean_ai_gen_2 <- ocean_ai_gen[,-5]
+
+fa_ocean_2 <- fa(ocean_ai_gen_2, nfactors = 5, rotate = "oblimin", fm = "pa")
+print(fa_ocean_2, digits = 2, sort = TRUE, cut = 0.2)
+# " I feel little compassion for those who are worse off than myself." 0.35
+
+ocean_ai_gen_3 <- ocean_ai_gen_2[,-2]
+
+fa_ocean_3 <- fa(ocean_ai_gen_3, nfactors = 5, rotate = "oblimin", fm = "pa")
+
+print(fa_ocean_3, digits = 2, sort = TRUE, cut = 0.2)
+#" I am the type of person who is willing to compromise in conflicts." 0.37
+
+ocean_ai_gen_4 <- ocean_ai_gen_3[,-6]
+
+fa_ocean_4 <- fa(ocean_ai_gen_4, nfactors = 5, rotate = "oblimin", fm = "pa")
+
+print(fa_ocean_4, digits = 2, sort = TRUE, cut = 0.2)
+# " I see myself as someone who is not very interested in abstract ideas." 0.38
+
+ocean_ai_gen_5 <- ocean_ai_gen_4[,-38]
+
+fa_ocean_5 <- fa(ocean_ai_gen_5, nfactors = 5, rotate = "oblimin", fm = "pa")
+
+print(fa_ocean_5, digits = 2, sort = TRUE, cut = 0.2)
+
+# " I try to impose my will on others." -0.42, 0.39
+
+ocean_ai_gen_6 <- ocean_ai_gen_5[,-3]
+
+fa_ocean_6 <- fa(ocean_ai_gen_6, nfactors = 5, rotate = "oblimin", fm = "pa")
+
+print(fa_ocean_6, digits = 2, sort = TRUE, cut = 0.3)
+```
+
+# Get the Item names 
+
+```{r}
+
+items_efa_ocean <- items$item[c(27,28,22,29,24,26,21,25,23,30,6,9,10,8,3,5,7,2,4,1,12,11,17,20,14,18,15,13,19,16,37,36,33,40,39,31,47,46,44,42,43,45)]
+
+```
+
+
+
+
+```{r}
+ocean_ai_gen_a <- ocean_ai_gen_a[,colnames(ocean_ai_gen_a)%in%colnames(ocean_ai_gen_6)]
+ocean_ai_gen_o <- ocean_ai_gen_o[,colnames(ocean_ai_gen_o)%in%colnames(ocean_ai_gen_6)]
+
+```
+
+# Itemselektion Need for Closure
+
+```{r}
+fa_nfc <- fa(nfc, nfactors = 1, rotate = "oblimin", fm = "pa")
+print(fa_nfc, digits = 2, sort = TRUE)
+#item 69, V22, Loading: 0.03
+
+nfc_2 <- nfc[,-22]
+
+fa_nfc_2 <- fa(nfc_2, nfactors = 1, rotate = "oblimin", fm = "pa")
+#need_for_closure.Q4_63	16	0.11	
+
+nfc_3 <- nfc_2[,-16]
+
+fa_nfc_3 <- fa(nfc_3, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_3, digits = 2, sort = TRUE)
+# need_for_closure.Q4_71	22	0.16	
+
+nfc_4 <- nfc_3[,-22]
+
+fa_nfc_4 <- fa(nfc_4, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_4, digits = 2, sort = TRUE)
+# need_for_closure.Q4_74	24	0.26	
+
+nfc_5 <- nfc_4[,-24]
+
+fa_nfc_5 <- fa(nfc_5, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_5, digits = 2, sort = TRUE)
+# need_for_closure.Q4_72	22	0.25
+
+nfc_6 <- nfc_5[,-22]
+
+fa_nfc_6 <- fa(nfc_6, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_6, digits = 2, sort = TRUE)
+# need_for_closure.Q4_75	23	0.25
+
+nfc_7 <- nfc_6[,-23]
+
+fa_nfc_7 <- fa(nfc_7, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_7, digits = 2, sort = TRUE)
+# need_for_closure.Q4_73	22	0.28	
+
+nfc_8 <- nfc_7[,-22]
+
+fa_nfc_8 <- fa(nfc_8, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_8, digits = 2, sort = TRUE)
+# need_for_closure.Q4_61	14	0.32	
+
+nfc_9 <- nfc_8[,-14]
+
+fa_nfc_9 <- fa(nfc_9, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_9, digits = 2, sort = TRUE)
+# need_for_closure.Q4_76	21	0.35	
+
+nfc_10 <- nfc_9[,-21]
+
+fa_nfc_10 <- fa(nfc_10, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_10, digits = 2, sort = TRUE)
+# need_for_closure.Q4_77	21	0.38
+
+nfc_11 <- nfc_10[,-21]
+
+fa_nfc_11 <- fa(nfc_11, nfactors = 1, rotate = "oblimin", fm = "pa")
+
+print(fa_nfc_11, digits = 2, sort = TRUE, cut = .3)
+
+# 69, 63, 71, 74, 72, 75, 73, 61, 76, 77
+
+nfc_items_removed <- items$item[c(69,63,71,74,72,75,73,61,76,77)] 
+nfc_items <- items$item[c(70,54,66,59,48,57,49,51,58,56,67,60,50,53,62,55,64,65,52,68)]
+```
+
+
+
+
+
+
+
+# Create Scale Means
+
+```{r}
+
+ocean_a_mean <- apply(ocean_ai_gen_a,1,mean)
+ocean_c_mean <- apply(ocean_ai_gen_c,1,mean)
+ocean_e_mean <- apply(ocean_ai_gen_e,1,mean)
+ocean_o_mean <- apply(ocean_ai_gen_o,1,mean)
+ocean_n_mean <- apply(ocean_ai_gen_n,1,mean)
+
+nfc_mean <- apply(nfc_3,1,mean)
+
+bfi_10_a_mean <- apply(bfi_10_a,1,mean)
+bfi_10_c_mean <- apply(bfi_10_c,1,mean)
+bfi_10_e_mean <- apply(bfi_10_e,1,mean)
+bfi_10_o_mean <- apply(bfi_10_o,1,mean)
+bfi_10_n_mean <- apply(bfi_10_n,1,mean)
+
+nfc_kern_mean <- apply(nfc_kern,1,mean)
+
+scale_means <- data.frame(ocean_a_mean = ocean_a_mean,
+                          ocean_c_mean = ocean_c_mean,
+                          ocean_e_mean = ocean_e_mean,
+                          ocean_o_mean = ocean_o_mean,
+                          ocean_n_mean = ocean_n_mean,
+                          nfc_mean = nfc_mean,
+                          bfi_10_a_mean = bfi_10_a_mean,
+                          bfi_10_c_mean = bfi_10_c_mean,
+                          bfi_10_e_mean = bfi_10_e_mean,
+                          bfi_10_o_mean = bfi_10_o_mean,
+                          bfi_10_n_mean = bfi_10_n_mean,
+                          nfc_kern_mean = nfc_kern_mean)
+```
+
+# create correlation tables for a descriptive summary
+
+```{r}
+p_load(pdist)
+
+de_ids <- which(data$country=="Germany")
+en_ids <- which(data$country!="Germany")
+
+scale_means_kern <- scale_means[,c(6:11)]
+scale_means_no_kern <- scale_means[,-c(6:11)]
+
+
+
+group_corr_toal_kern <- cor(scale_means_kern)
+group_corr_total_no_kern <- cor(scale_means_no_kern)
+
+describe(c(group_corr_toal_kern))
+
+# Mean correlation r =.15, sd = .46, Md = .12
+
+describe(c(group_corr_total_no_kern))
+
+# Mean correlation r =.17, sd = .46, Md = .12
+
+diff <- (group_corr_toal_kern-group_corr_total_no_kern)
+diff <- abs((diff))
+
+describe(c(diff))
+# mean r_diff = 0.29, sd 0.23
+
+
+mean(group_means_total_no_kern)
+
+group_means_de_kern <- apply(scale_means_kern[de_ids,],MARGIN = 2,mean)
+group_means_de_no_kern <- apply(scale_means_no_kern[de_ids,],MARGIN = 2,mean)
+
+group_means_en_kern <- apply(scale_means_kern[en_ids,],MARGIN = 2,mean)
+group_means_en_no_kern <- apply(scale_means_no_kern[en_ids,],MARGIN = 2,mean)
+
+group_sd_de_kern <- apply(scale_means_kern[de_ids,],MARGIN = 2,sd)
+group_sd_de_no_kern <- apply(scale_means_no_kern[de_ids,],MARGIN = 2,sd)
+
+group_sd_en_kern <- apply(scale_means_kern[en_ids,],MARGIN = 2,sd)
+group_sd_en_no_kern <- apply(scale_means_no_kern[en_ids,],MARGIN = 2,sd)
+
+
+
+
+
+
+corr_data_kern <- data.frame("M DE" = group_means_de_kern,"group_sd_de" = group_sd_de_kern,"group_means_en" = group_means_en_kern,"group_sd_en" = group_sd_en_kern)
+
+corr_data_no_kern <- data.frame("M DE" = group_means_de_no_kern,"group_sd_de" = group_sd_de_no_kern,"group_means_en" = group_means_en_no_kern,"group_sd_en" = group_sd_en_no_kern)
+
+'datasummary_correlation(scale_means_kern,add_columns = corr_data_kern,output = "Corr_Mat_1_kern.docx" )
+
+
+datasummary_correlation(scale_means_no_kern,add_columns = corr_data_no_kern,output = "Corr_Mat_1_no_kern.docx" )'
+
+
+
+
+
+
+
+```
+
+## H2 Convergent Validity
+
+```{r}
+
+# Function for calculating the correlation test statistic
+
+calculate_z_value <- function(r,n){
+  r <- r-.4
+  t_value <- r*sqrt((n-2)/(1-r^2))
+  return(t_value)
+}
+
+# Check for normality of scales
+
+cor.plot(scale_means)
+
+car::qqPlot(scale_means$ocean_n_mean,main = "KI-Neurotizismus")
+car::qqPlot(scale_means$bfi_10_n_mean,main = "BFI-10-Neurotizismus")
+
+describe(scale_means$ocean_n_mean)
+# Skew = 0.13, kur = -0.55
+
+describe(scale_means$bfi_10_n_mean)
+# s = 0.25, k = -0.55
+
+car::qqPlot(scale_means$ocean_a_mean,main = "KI-Verträglichkeit")
+car::qqPlot(scale_means$bfi_10_a_mean,main = "BFI-10-Verträglichkeit")
+
+describe(scale_means$ocean_a_mean)
+# s = -1.08, k = 1.55
+
+describe(scale_means$bfi_10_a_mean)
+# s = -0.7, k =  0.74
+
+car::qqPlot(scale_means$ocean_c_mean,main = "KI-Gewissenhaftigkeit")
+car::qqPlot(scale_means$bfi_10_c_mean,main = "BFI-10-Gewissenhaftigkeit")
+
+describe(scale_means$ocean_c_mean)
+# s = -0.47, k -0.44
+
+describe(scale_means$bfi_10_c_mean)
+# s -0.44, k -0.29
+
+car::qqPlot(scale_means$ocean_e_mean,main = "KI-Extraversion")
+car::qqPlot(scale_means$bfi_10_e_mean,main = "BFI-10-Extraversion")
+
+describe(scale_means$ocean_e_mean)
+# S = -0.22, k = -0.64
+
+describe(scale_means$bfi_10_e_mean)
+# s = -0.07, k = -0.8
+
+car::qqPlot(scale_means$ocean_o_mean,main = "KI-Offenheit")
+car::qqPlot(scale_means$bfi_10_o_mean,main = "BFI-10-Offenheit")
+
+describe(scale_means$ocean_o_mean)
+# s = -0.41, k = -0.26
+
+describe(scale_means$bfi_10_o_mean)
+
+# s = -0.24, k = -0.51
+
+car::qqPlot(scale_means$nfc_mean,main = "KI-NFC")
+car::qqPlot(scale_means$nfc_kern_mean,main = "NFC-Kern")
+
+describe(scale_means$nfc_mean)
+# s = -0.73, k = 1.53
+
+
+## Neuroticism
+
+corr.test(scale_means$ocean_n_mean,scale_means$bfi_10_n_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .89; 95% CI: (.85, .92); 
+
+# z value
+calculate_z_value(r = cor(scale_means$ocean_n_mean,scale_means$bfi_10_n_mean,method = "pearson"),n = 147)
+#6.736507
+
+pnorm(q = 6.736507, lower.tail = FALSE)%>%round(3)
+# p <.001
+
+## Agreeableness
+
+corr.test(scale_means$ocean_a_mean,scale_means$bfi_10_a_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .63, 95% CI: (.52, .72); p < .001
+
+# z value
+
+calculate_z_value(r = cor(scale_means$ocean_a_mean,scale_means$bfi_10_a_mean,method = "pearson"),n = 147)
+# 2.877373
+
+pnorm( q = 2.877373, lower.tail = FALSE)%>%round(3)
+# p = .002
+
+## Conscientiousness
+
+corr.test(scale_means$ocean_c_mean,scale_means$bfi_10_c_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .74, 95% CI: (.66, .81); p < .001
+
+# z value
+
+calculate_z_value(r = cor(scale_means$ocean_c_mean,scale_means$bfi_10_c_mean,method = "pearson"),n = 147)
+# 4.355044
+
+pnorm(q = 4.355044, lower.tail = FALSE)%>%round(3)
+
+# p < .001
+
+
+## Extraversion
+
+corr.test(scale_means$ocean_e_mean,scale_means$bfi_10_e_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .89, 95% CI: (.85, .92); p < .001
+
+# z value
+
+calculate_z_value(r = cor(scale_means$ocean_e_mean,scale_means$bfi_10_e_mean,method = "pearson"),n = 147)
+
+# 6.729625
+
+pnorm(q = 6.729625, lower.tail = FALSE)%>%round(3)
+
+# p < .001
+
+
+## Openness
+
+corr.test(scale_means$ocean_o_mean,scale_means$bfi_10_o_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .49, 95% CI: (.35, .60); p < .001
+
+# z value
+
+calculate_z_value(r = cor(scale_means$ocean_o_mean,scale_means$bfi_10_o_mean,method = "pearson"),n = 147)
+# 1.038441
+
+pnorm(q = 1.038441, lower.tail = FALSE)%>%round(3)
+# p = .15
+
+## NFC
+
+corr.test(scale_means$nfc_mean,scale_means$nfc_kern_mean,method = "pearson", ci= TRUE)%>% print(short = FALSE,digits = 3)
+# r = .89, 95% CI: (.85, .92);
+
+# z value
+
+calculate_z_value(r = cor(scale_means$nfc_mean,scale_means$nfc_kern_mean,method = "pearson"),n = 147)
+# 6.780933;
+
+pnorm( q = 6.780933, lower.tail = FALSE)%>%round(3)
+
+# p < .001
+
+```
+
+# Implementation of the Spearman-Brown formula
+```{r}
+
+# Source: https://m-py.github.io/TesttheorieR/psychometrie.html
+## Define a SPEARMAN-BROWN function. It takes two arguments:
+## (a) a reliability estimator
+## (b) an extension factor
+
+spearman_brown <- function(reliability, factor) {
+    numerator  <- reliability * factor
+    denominator <- 1 + (factor-1) * reliability
+    corrected_reliability <- numerator / denominator
+    return(corrected_reliability)
+}
+```
+
+
+
+## Calculate Alpha
+
+```{r}
+alpha(nfc_kern)
+# Alpha = .86, 95% CI: (.82, .89); mean_r = .29
+
+alpha(nfc_3)
+# Alpha = .93, 95% CI: (.91, .94); mean_r = .32
+
+alpha(ocean_ai_gen_o,check.keys = TRUE)
+# Alpha = .78, 95% CI: (.72, .83); mean_r = .38
+
+alpha(ocean_ai_gen_c,check.keys = TRUE)
+# Alpha = .82, 95% CI: (.77, .86); mean_r = .31
+
+alpha(ocean_ai_gen_e, check.keys = TRUE)
+# Alpha = .91, 95% CI: (.88, .93); mean_r = .48
+
+alpha(ocean_ai_gen_a, check.keys=TRUE)
+# Alpha = .79, 95% CI: (.74, .84); mean_r = .40
+
+alpha(ocean_ai_gen_n, check.keys=TRUE)
+# Alpha = .92, 95% CI: (.90, .94);mean_r = .53
+
+## Neuroticism
+(corr.test(bfi_10_n,ci=TRUE)%>% print(short = FALSE,digits = 3))
+# r = .64, 95% CI: (.53, .73); p < .001
+
+spearman_brown(reliability = cor(bfi_10_n[,1],bfi_10_n[,2]),factor = 5)
+# 0.8985481 
+
+# 2.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_n[,1],bfi_10_n[,2],ci=TRUE)$ci$lower,factor = 5)
+# 0.8505688
+
+# 97.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_n[,1],bfi_10_n[,2],ci=TRUE)$ci$upper,factor = 5)
+# 0.929797
+
+## Agreeableness
+
+(corr.test(bfi_10_a,ci=TRUE)%>% print(short = FALSE,digits = 3))
+# r = .22, 95%CI: (.06, .37); p = .008
+
+spearman_brown(reliability = cor(bfi_10_a[,1],bfi_10_a[,2]),factor = 3)
+# 0.4555848
+
+# 2.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_a[,1],bfi_10_a[,2],ci=TRUE)$ci$lower,factor = 3)
+#0.1565625
+
+# 97.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_a[,1],bfi_10_a[,2],ci=TRUE)$ci$upper,factor = 3)
+#0.6349864
+
+## Conscientiousness
+
+(corr.test(bfi_10_c,ci=TRUE)%>% print(short = FALSE,digits = 3))
+# r = .47, 95% CI: (.34, .59); p < .001
+
+spearman_brown(reliability = cor(bfi_10_c[,1],bfi_10_c[,2]),factor = 5)
+# 0.8185848
+
+# 2.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_c[,1],bfi_10_c[,2],ci=TRUE)$ci$lower,factor = 5)
+# 0.7189521
+
+# 97.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_c[,1],bfi_10_c[,2],ci=TRUE)$ci$upper,factor = 5)
+# 0.8783641
+
+## Extraversion
+
+(corr.test(bfi_10_e,ci=TRUE)%>% print(short = FALSE,digits = 3))
+# r = .70, 95% CI: (.60, .77); p < .001
+
+spearman_brown(reliability = cor(bfi_10_e[,1],bfi_10_e[,2]),factor = 5)
+# 0.919935
+
+# 2.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_e[,1],bfi_10_e[,2],ci=TRUE)$ci$lower,factor = 5)
+# 0.8836028
+
+# 97.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_e[,1],bfi_10_e[,2],ci=TRUE)$ci$upper,factor = 5)
+# 0.9441171
+
+## Openness
+
+(corr.test(bfi_10_o,ci=TRUE)%>% print(short = FALSE,digits = 3))
+# r = .38, 95% CI: (.23, .51); p < .001
+
+spearman_brown(reliability = cor(bfi_10_o[,1],bfi_10_o[,2]),factor = 3)
+# 0.643115
+
+# 2.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_o[,1],bfi_10_o[,2],ci=TRUE)$ci$lower,factor = 3)
+#0.4686061
+
+# 97.5% CI
+
+spearman_brown(reliability = corr.test(bfi_10_o[,1],bfi_10_o[,2],ci=TRUE)$ci$upper,factor = 3)
+#0.7547635
+
+
+```
+# Calculation of results for feedback to participants
+
+```{r}
+data$ocean_o_mean <- bfi_10_o %>% rowMeans()
+data$ocean_c_mean <- bfi_10_c %>% rowMeans()
+data$ocean_e_mean <- bfi_10_e %>% rowMeans()
+data$ocean_a_mean <- bfi_10_a %>% rowMeans()
+data$ocean_n_mean <- bfi_10_n %>% rowMeans()
+
+data$nfc_mean <- nfc_kern %>% rowMeans()
+
+user_data <- data%>%
+  filter(ErgebnisseYN == 1)%>%
+  filter(!is.na(Q13))%>%
+  dplyr::select(ocean_o_mean,ocean_c_mean,ocean_e_mean,ocean_a_mean,ocean_n_mean,nfc_mean,Q13, UserID)
+
+
+#  save(user_data,file = "user_results.RData")
+
+```

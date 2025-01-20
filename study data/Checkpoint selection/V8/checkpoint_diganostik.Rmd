@@ -1,0 +1,559 @@
+# Packete laden
+
+```{r}
+library(pacman)
+
+p_load(
+  tidyverse,
+  stringr,
+  psych,
+  rjson,
+  reticulate
+)
+```
+
+
+
+
+# Distanz innerhalb der Outputs
+
+```{r}
+data_in <- readxl::read_xlsx("output_distances.xlsx")
+duplicates <- readxl::read_xlsx("duplicate_items.xlsx")
+min_original_dist <- readxl::read_xlsx("distances_min_list.xlsx")
+```
+
+
+```{r}
+# duplicate frames & min distances berechnen
+
+duplicates <- duplicates[,-1]
+
+min_original_dist <- min_original_dist[,-1]
+
+n_dupes <- colSums(duplicates,na.rm = TRUE)%>%unname()
+
+
+describe(n_dupes)
+
+# Vergleich
+' vars  n mean   sd median trimmed  mad min max range skew kurtosis  se
+X1    1 64  3.2 1.62      3    3.12 1.48   1   7     6 0.31    -0.96 0.2'
+
+
+
+
+mean_min_dist <- apply(min_original_dist,FUN = mean,na.rm=TRUE,MARGIN = 2)%>%unname()
+
+
+describe(mean_min_dist)
+
+'   vars  n  mean   sd median trimmed  mad min   max range skew kurtosis   se
+ X1    1 64 20.67 3.48  20.28   20.51 3.28  13 29.53 16.53  0.4     0.18 0.44'
+
+```
+
+
+```{r}
+colnames(data_in) <- c("prompt","dist")
+
+
+data_in <- data_in[1:80,]
+
+
+data_in <- cbind(data_in,n_dupes=n_dupes,mean_min_dist=mean_min_dist)
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+keepstrRight <- function(x, n){
+  substr(x, 1, nchar(x)-n)
+}
+
+post_fix <- data_in$prompt%>%substrRight(n = 1)%>%as.factor()
+
+data_in <- data_in[1:80,]
+
+data_in <- cbind(data_in,time= post_fix[1:80])
+
+data_in$prompt <- data_in$prompt%>%
+  keepstrRight(n=2)
+
+
+t_09 <- grepl(data_in$prompt,pattern='temperature_0.9')
+t_14 <- grepl(data_in$prompt,pattern='temperature_1.4')
+
+temp = rep(NA,80)
+
+temp[t_09] <- "T9"
+temp[t_14] <- "T14"
+
+data_in <- cbind(data_in,temp=temp%>%as.factor())
+
+diff = rep(NA,80)
+
+diff_1 <- grepl(data_in$prompt,pattern='difficulty_1')
+
+diff[diff_1] <- "1"
+diff[!diff_1] <- "5"
+
+data_in <- cbind(data_in,diff=as.factor(diff))
+
+inverted = rep(NA,80)
+
+inverted_t <- grepl(data_in$prompt,pattern='invert_TRUE')
+
+inverted[inverted_t] <- "TRUE"
+inverted[!inverted_t] <- "FALSE"
+
+data_in <- cbind(data_in,inverted=as.factor(inverted))
+
+
+data_in$prompt <- substr(data_in$prompt,1,8)
+
+
+data_in%>%
+  group_by(time)%>%
+  filter(!is.na(dist))%>%
+  rstatix::get_summary_stats()
+
+# Need for closure und extraversion
+'time  variable          n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+   <fct> <chr>         <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1 1     dist             16  17.2  60.6   27.8 22.5   34.2 11.7   8.66 30.7  12.2  3.05  6.50 
+ 2 1     mean_min_dist    16  13.8  27.2   21.1 19.0   22.0  3.04  2.85 20.6   3.47 0.868 1.85 
+ 3 1     n_dupes          16   0     6      3    1      3    2     1.48  2.5   1.51 0.376 0.802
+ 4 2     dist             16  22.6  84.1   39.8 30.0   57.1 27.1  18.7  45.0  18.5  4.63  9.86 
+ 5 2     mean_min_dist    16  15.9  25.6   21.5 19.9   22.9  2.93  2.28 21.4   2.62 0.656 1.40 
+ 6 2     n_dupes          16   1     4      2    1.75   3    1.25  1.48  2.38  1.09 0.272 0.58 
+ 7 3     dist             16  27.1  75.7   44.1 34.6   58.3 23.6  18.3  47.5  14.3  3.58  7.64 
+ 8 3     mean_min_dist    16  14.2  27.8   18.8 16.6   20.4  3.80  2.93 18.9   3.63 0.908 1.94 
+ 9 3     n_dupes          16   1     6      4    3      5    2     1.48  3.88  1.41 0.352 0.75 
+10 4     dist             16  25.3  64.7   37.9 30.0   49.7 19.6  13.6  41.3  12.2  3.04  6.48 
+11 4     mean_min_dist    16  14.4  37.2   22.0 19.5   24.4  4.89  3.78 22.7   5.35 1.34  2.85 
+12 4     n_dupes          16   0     5      3    1.75   3.5  1.75  2.22  2.75  1.61 0.403 0.859
+13 5     dist             16  18.3  58.3   35.4 30.1   47.0 16.9  15.1  37.1  12.1  3.02  6.45 
+14 5     mean_min_dist    16  14.8  35.6   19.3 18.0   22.1  4.14  2.30 21.4   5.91 1.48  3.15 
+15 5     n_dupes          16   1     6      4    2      5    3     2.22  3.69  1.85 0.463 0.987'
+# Dist: 3 > 2 > 4 > 1
+# Mean_min_dist: 2 > 4 > 1 > 3 ~ 0
+# n_dupes: 4 < 2 < 1 < 3
+
+dist_e_nfc <- c(3,2,4,1)
+mean_min_dist_e_nfc <- c(2,4,1,3)
+n_dupes_e_nfc <- c(4,2,1,3)
+
+
+
+
+
+data_in%>%
+  group_by(time)%>%
+  filter(!is.na(dist))%>%
+  rstatix::get_summary_stats()
+
+# Only need for Closure
+' time  variable          n   min   max median    q1    q3   iqr    mad  mean    sd    se    ci
+   <fct> <chr>         <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1 1     dist              8  25.7  60.6   36.1  31.3 44.2  12.9   9.75  39.0  11.9  4.2    9.93
+ 2 1     mean_min_dist     8  17.4  24.2   19.5  18.9 20.5   1.64  1.08  20     2.09 0.739  1.75
+ 3 1     n_dupes           8   1     5      4     3.5  4.25  0.75  0.741  3.62  1.41 0.498  1.18
+ 4 2     dist              8  36.8  84.1   59.2  49.6 66.3  16.7  15.7   58.9  15.5  5.49  13.0 
+ 5 2     mean_min_dist     8  15.8  29.5   18.1  16.5 19.6   3.05  2.49  19.4   4.53 1.6    3.78
+ 6 2     n_dupes           8   1     6      3     2    4     2     1.48   3.12  1.55 0.549  1.30
+ 7 3     dist              8  44.9  75.7   58.9  55.1 63.6   8.46  8.30  59.4   9.34 3.30   7.81
+ 8 3     mean_min_dist     8  13    29.2   19.4  16.5 21.3   4.77  4.60  19.6   4.98 1.76   4.16
+ 9 3     n_dupes           8   2     7      5     2    5.25  3.25  2.22   4.25  1.98 0.701  1.66
+10 4     dist              8  40.7  64.7   49.7  48.7 52.8   4.18  2.55  51.6   7.85 2.77   6.56
+11 4     mean_min_dist     8  17.4  23.2   21.3  19.5 22.0   2.52  1.83  20.7   2.07 0.732  1.73
+12 4     n_dupes           8   1     6      3     2    4     2     1.48   3.12  1.55 0.549  1.30'
+
+# Dist: 3 > 2 > 4 > 1
+# Mean_min_dist: 4 > 1 > 3 > 2
+# n_dupes: 2,4 < 1 < 3
+
+data_in%>%
+  group_by(time)%>%
+  filter(!is.na(dist))%>%
+  filter(prompt== "prompt_2")%>%
+  rstatix::get_summary_stats()
+' time  variable          n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+   <fct> <chr>         <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+ 1 1     dist              8  17.2  30.0   21.9 19.2  25.1   5.97 5.36  22.4   4.52 1.60   3.78
+ 2 1     mean_min_dist     8  15.6  27     20.5 19.9  21.6   1.68 1.33  20.9   3.31 1.17   2.77
+ 3 1     n_dupes           8   1     6      3    1.75  5     3.25 2.96   3.25  1.91 0.675  1.60
+ 4 2     dist              8  22.6  43.9   30.0 26.0  34.9   8.87 7.52  31.0   7.03 2.48   5.87
+ 5 2     mean_min_dist     8  20.3  25.1   23.4 22.3  23.9   1.62 1.33  23.1   1.61 0.57   1.35
+ 6 2     n_dupes           8   1     5      2.5  1     3.25  2.25 2.22   2.5   1.51 0.535  1.26
+ 7 3     dist              8  27.1  43.3   34.5 31.7  41.2   9.46 7.02  35.7   5.79 2.05   4.84
+ 8 3     mean_min_dist     8  17.4  28.1   20.4 19.3  21.8   2.48 2.59  21.0   3.41 1.21   2.85
+ 9 3     n_dupes           8   2     6      3    2.75  3.5   0.75 0.741  3.38  1.41 0.498  1.18
+10 4     dist              8  25.3  35.1   30.0 28.8  35.0   6.19 4.36  31.0   3.67 1.30   3.06
+11 4     mean_min_dist     8  13.6  27.6   20.5 19.2  22.1   2.90 2.97  20.7   4.40 1.56   3.68
+12 4     n_dupes           8   1     5      2    1     3.25  2.25 1.48   2.38  1.51 0.532  1.26'
+
+# Dist 3 > 2 > 4 > 1
+# Mean_min_dist 
+
+# Dist
+
+data_in%>%
+  filter(!is.na(dist))%>%
+  filter(prompt== "prompt_1")%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%filter(prompt== "prompt_1")%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%filter(prompt== "prompt_1")%>%pull(dist)),color="red")+
+  facet_wrap(~time)
+
+# 3 wins
+
+data_in%>%
+  filter(!is.na(dist))%>%
+  filter(prompt== "prompt_2")%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%filter(prompt== "prompt_2")%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%filter(prompt== "prompt_2")%>%pull(dist)),color="red")+
+  facet_wrap(~time)
+
+# 3 wins
+
+data_in%>%
+  filter(!is.na(dist))%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="red")+
+  facet_wrap(~time)
+
+# 3 wins
+
+# min dist
+
+data_in%>%
+  filter(!is.na(mean_min_dist))%>%
+  filter(prompt== "prompt_1")%>%
+  ggpubr::ggdensity("mean_min_dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(mean_min_dist))%>%filter(prompt=="prompt_1")%>%pull(mean_min_dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(mean_min_dist))%>%filter(prompt=="prompt_1")%>%pull(mean_min_dist)),color="red")+
+  facet_wrap(~time)
+
+# 4 wins, 3 & 1 close
+
+
+data_in%>%
+  filter(!is.na(mean_min_dist))%>%
+  filter(prompt== "prompt_2")%>%
+  ggpubr::ggdensity("mean_min_dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(mean_min_dist))%>%filter(prompt=="prompt_2")%>%pull(mean_min_dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(mean_min_dist))%>%filter(prompt=="prompt_2")%>%pull(mean_min_dist)),color="red")+
+  facet_wrap(~time)
+
+# 2 wins, 3 & 1 close
+
+data_in%>%
+  filter(!is.na(mean_min_dist))%>%
+  ggpubr::ggdensity("mean_min_dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(mean_min_dist))%>%pull(mean_min_dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(mean_min_dist))%>%pull(mean_min_dist)),color="red")+
+  facet_wrap(~time)
+
+# 4 & 2
+
+# n dupes
+
+data_in%>%
+  filter(!is.na(n_dupes))%>%
+  filter(prompt== "prompt_1")%>%
+  ggpubr::ggdensity("n_dupes")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(n_dupes))%>%filter(prompt=="prompt_1")%>%pull(n_dupes)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(n_dupes))%>%filter(prompt=="prompt_1")%>%pull(n_dupes)),color="red")+
+  facet_wrap(~time)
+
+# 4 wins, 2 & 3 close
+
+data_in%>%
+  filter(!is.na(n_dupes))%>%
+  filter(prompt== "prompt_2")%>%
+  ggpubr::ggdensity("n_dupes")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(n_dupes))%>%filter(prompt=="prompt_2")%>%pull(n_dupes)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(n_dupes))%>%filter(prompt=="prompt_2")%>%pull(n_dupes)),color="red")+
+  facet_wrap(~time)
+
+# 4 wins, 3 close
+
+data_in%>%
+  filter(!is.na(n_dupes))%>%
+  ggpubr::ggdensity("n_dupes")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(n_dupes))%>%pull(n_dupes)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(n_dupes))%>%pull(n_dupes)),color="red")+
+  facet_wrap(~time)
+
+# 4 & 2 win
+
+# 4 Scheint das beste Modell zu sein. 2 ist aber auch gut. 3 & 1 sind schlecht
+
+# Einfluss der schwierigkeit
+
+data_in%>%
+  filter(time == 1)%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="red")+
+  facet_wrap(~diff)
+
+
+data_in%>%
+  filter(time == 1)%>%
+  rstatix::cohens_d(dist~diff)
+
+'  .y.   group1 group2 effsize    n1    n2 magnitude 
+* <chr> <chr>  <chr>    <dbl> <int> <int> <ord>     
+1 dist  1      5       0.0677     8     8 negligible'
+
+
+# Unterscheidung erkennbar
+
+data_in%>%
+  filter(time == 2)%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="red")+
+  facet_wrap(~diff)
+
+data_in%>%
+  filter(time == 2)%>%
+  rstatix::cohens_d(dist~diff)
+
+'  .y.   group1 group2 effsize    n1    n2 magnitude 
+* <chr> <chr>  <chr>    <dbl> <int> <int> <ord>     
+1 dist  1      5        0.146     8     8 negligible'
+
+# Unterscheidung erkennbar
+
+data_in%>%
+  filter(time == 3)%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="red")+
+  facet_wrap(~diff)
+
+data_in%>%
+  filter(time == 3)%>%
+  rstatix::cohens_d(dist~diff)
+
+'  .y.   group1 group2 effsize    n1    n2 magnitude 
+* <chr> <chr>  <chr>    <dbl> <int> <int> <ord>     
+1 dist  1      5       0.0196     8     8 negligible'
+
+# Unterscheidung eher schwach erkennbar
+
+data_in%>%
+  filter(time == 4)%>%
+  ggpubr::ggdensity("dist")+
+  geom_vline(xintercept = mean(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="blue")+
+  geom_vline(xintercept = median(data_in%>%filter(!is.na(dist))%>%pull(dist)),color="red")+
+  facet_wrap(~diff)
+
+data_in%>%
+  filter(time == 4)%>%
+  rstatix::cohens_d(dist~diff)
+
+'  .y.   group1 group2 effsize    n1    n2 magnitude 
+* <chr> <chr>  <chr>    <dbl> <int> <int> <ord>     
+1 dist  1      5      -0.0247     8     8 negligible'
+
+# Unterscheidung erkennbar
+
+```
+
+
+
+# Fit a random effect model
+```{r}
+library(lme4)
+library(lmerTest)
+
+model_dist <- lmer(dist ~ temp + diff + inverted + (1 | prompt) + time, data = data_in)
+model_dist_lm <- lm(dist ~ temp + diff + inverted+ prompt + time, data = data_in)
+
+summary(model_dist)
+summary(model_dist_lm)
+
+anova(model_dist)
+
+# Glmer
+
+'              Estimate Std. Error        df t value Pr(>|t|)    
+(Intercept)   36.39049   11.31336   1.08577   3.217 0.175876    
+tempT9       -10.34358    1.85496  56.00000  -5.576 7.36e-07 ***
+diff5         -0.90556    1.85496  56.00000  -0.488 0.627325    
+invertedTRUE  -0.07227    1.85496  56.00000  -0.039 0.969060    
+time2         14.22033    2.62331  56.00000   5.421 1.30e-06 ***
+time3         16.80459    2.62331  56.00000   6.406 3.30e-08 ***
+time4         10.54692    2.62331  56.00000   4.020 0.000175 ***'
+
+# Glm
+
+'                Estimate Std. Error t value Pr(>|t|)    
+(Intercept)     47.47340    2.62331  18.097  < 2e-16 ***
+tempT9         -10.34358    1.85496  -5.576 7.36e-07 ***
+diff5           -0.90556    1.85496  -0.488 0.627325    
+invertedTRUE    -0.07227    1.85496  -0.039 0.969060    
+promptprompt_2 -22.16581    1.85496 -11.949  < 2e-16 ***
+time2           14.22033    2.62331   5.421 1.30e-06 ***
+time3           16.80459    2.62331   6.406 3.30e-08 ***
+time4           10.54692    2.62331   4.020 0.000175 ***'
+
+
+intercept_only <- lmer(dist~1+(1|prompt),data = data_in)
+intercept_only
+summary(intercept_only)
+#66.87863 % der Varianz wird durch die Prompt erklaert
+
+pairs.panels(data_in)
+```
+
+# Repeat multi level model for number of dupes
+```{r}
+model_n_dupes <- glmer(n_dupes ~  temp + diff + time + inverted + (1 | prompt), data = data_in,family="poisson")
+model_n_dupes_glm <- glm(n_dupes ~  temp + diff + time + inverted + prompt, data = data_in,family="poisson")
+
+summary(model_n_dupes)
+summary(model_n_dupes_glm)
+anova(model_n_dupes)
+
+# Glmer
+
+'             Estimate Std. Error z value Pr(>|z|)    
+(Intercept)   1.20433    0.18320   6.574  4.9e-11 ***
+tempT9       -0.14661    0.14006  -1.047    0.295    
+diff5         0.14660    0.14006   1.047    0.295    
+time2        -0.20069    0.20101  -0.998    0.318    
+time3         0.10353    0.18594   0.557    0.578    
+time4        -0.22315    0.20226  -1.103    0.270    
+invertedTRUE  0.04878    0.13973   0.349    0.727   '
+
+# Glm
+'              Estimate Std. Error z value Pr(>|z|)    
+(Intercept)     1.30221    0.19271   6.758  1.4e-11 ***
+tempT9         -0.14660    0.14006  -1.047    0.295    
+diff5           0.14660    0.14006   1.047    0.295    
+time2          -0.20067    0.20100  -0.998    0.318    
+time3           0.10354    0.18594   0.557    0.578    
+time4          -0.22314    0.20226  -1.103    0.270    
+invertedTRUE    0.04879    0.13973   0.349    0.727    
+promptprompt_2 -0.20560    0.14042  -1.464    0.143'
+
+intercept_only <- glmer(n_dupes~1+(1|prompt),data = data_in,family="poisson")
+intercept_only
+summary(intercept_only)
+var(data_in$n_dupes)
+(0.007928)/1.127095
+#7.24% erklaert durch Unterschiede in Prompts
+# (1.127095-0.08169 )/1.127095
+```
+# Check influence for the mean min distance
+
+```{r}
+model_mean_min_dist <- lmer(mean_min_dist ~  temp + diff + inverted+ (1 | prompt) + time, data = data_in)
+model_mean_min_dist_lm <- lm(mean_min_dist ~  temp + diff + inverted+ prompt + time, data = data_in)
+
+summary(model_mean_min_dist)
+summary(model_mean_min_dist_lm)
+
+anova(model_mean_min_dist)
+
+# Lmer
+
+'             Estimate Std. Error      df t value Pr(>|t|)    
+(Intercept)   19.5456     1.2903  7.9700  15.148 3.71e-07 ***
+tempT9        -0.7924     0.8538 56.0000  -0.928   0.3574    
+diff5          1.1947     0.8538 56.0000   1.399   0.1672    
+invertedTRUE   1.4414     0.8538 56.0000   1.688   0.0969 .  
+time2          0.7333     1.2075 56.0000   0.607   0.5461    
+time3         -0.1465     1.2075 56.0000  -0.121   0.9039    
+time4          0.2299     1.2075 56.0000   0.190   0.8497   '
+
+# Lm
+
+'               Estimate Std. Error t value Pr(>|t|)    
+(Intercept)     18.7897     1.2075  15.561   <2e-16 ***
+tempT9          -0.7924     0.8538  -0.928   0.3574    
+diff5            1.1947     0.8538   1.399   0.1672    
+invertedTRUE     1.4414     0.8538   1.688   0.0969 .  
+promptprompt_2   1.5117     0.8538   1.771   0.0821 .  
+time2            0.7333     1.2075   0.607   0.5461    
+time3           -0.1465     1.2075  -0.121   0.9039    
+time4            0.2299     1.2075   0.190   0.8497  '
+
+
+intercept_only <- lmer(mean_min_dist~1+(1|prompt),data = data_in)
+intercept_only
+summary(intercept_only)
+```
+
+```{r}
+data_in%>%
+  group_by(prompt)%>%
+  select(n_dupes,prompt)%>%
+  rstatix::get_summary_stats()
+
+'  prompt   variable     n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <chr>    <chr>    <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 prompt_1 n_dupes     32     1     7      4  2        5  3     1.48  3.53  1.63 0.287 0.586
+2 prompt_2 n_dupes     32     1     6      3  1.75     4  2.25  1.48  2.88  1.58 0.28  0.57 '
+
+data_in%>%
+  group_by(prompt)%>%
+  select(mean_min_dist,prompt)%>%
+  rstatix::get_summary_stats()
+
+'  prompt   variable          n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <chr>    <chr>         <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 prompt_1 mean_min_dist    32  13    29.5   19.4  17.6  21.7  4.1   3.02  19.9  3.53 0.624  1.27
+2 prompt_2 mean_min_dist    32  13.6  28.1   20.9  20.0  23.5  3.51  2.88  21.4  3.31 0.586  1.20'
+```
+# Vergleich V1
+```{r}
+
+data_in%>%
+  filter(prompt=="prompt_2")%>%
+  group_by(time)%>%
+  rstatix::get_summary_stats("dist")
+
+'  time  variable     n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <fct> <chr>    <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 1     dist         8  17.2  30.0   21.9  19.2  25.1  5.97  5.36  22.4  4.52  1.60  3.78
+2 2     dist         8  22.6  43.9   30.0  26.0  34.9  8.87  7.52  31.0  7.03  2.48  5.87
+3 3     dist         8  27.1  43.3   34.5  31.7  41.2  9.46  7.02  35.7  5.79  2.05  4.84
+4 4     dist         8  25.3  35.1   30.0  28.8  35.0  6.19  4.36  31.0  3.67  1.30  3.06
+5 5     dist         8  18.3  34.1   30.0  21.5  31.0  9.49  4.49  27.2  5.96  2.11  4.98'
+
+data_in%>%
+  filter(prompt=="prompt_2")%>%
+  group_by(time)%>%
+  rstatix::get_summary_stats("n_dupes")
+
+'  time  variable     n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <fct> <chr>    <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 1     n_dupes      8     1     4    2.5  1     3     2    1.48   2.25  1.16 0.412 0.974
+2 2     n_dupes      8     1     4    2    1     2.5   1.5  1.48   2.12  1.25 0.441 1.04 
+3 3     n_dupes      8     1     6    3.5  3     4.25  1.25 0.741  3.62  1.51 0.532 1.26 
+4 4     n_dupes      8     1     5    3    1.75  5     3.25 2.96   3.12  1.73 0.611 1.44 
+5 5     n_dupes      8     1     6    4    2     5     3    2.22   3.62  1.77 0.625 1.48 '
+
+data_in%>%
+  filter(prompt=="prompt_2")%>%
+  group_by(time)%>%
+  rstatix::get_summary_stats("mean_min_dist")
+
+'  time  variable          n   min   max median    q1    q3   iqr   mad  mean    sd    se    ci
+  <fct> <chr>         <dbl> <dbl> <dbl>  <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+1 1     mean_min_dist     8  15.2  23.7   20.2  18.0  21.8  3.78  3.26  19.8  3.00  1.06  2.51
+2 2     mean_min_dist     8  15.9  25.6   21.4  20.0  22.7  2.64  2.19  21.2  2.90  1.02  2.42
+3 3     mean_min_dist     8  14.2  27.8   19.4  16.3  21.6  5.34  5.00  19.6  4.65  1.64  3.89
+4 4     mean_min_dist     8  14.4  37.2   21.3  20.2  25.3  5.16  3.51  23.4  6.85  2.42  5.73
+5 5     mean_min_dist     8  14.8  35.6   19.3  17.5  23.1  5.58  3.28  22.0  7.78  2.75  6.51'
+
+```
+

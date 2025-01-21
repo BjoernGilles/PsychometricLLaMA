@@ -1,14 +1,32 @@
-# PsychometricLLaMA for controlled generation of psychometric test items
+# PsychometricLLaMA: Controlled Generation of Psychometric Test Items
 
-This Repository contains a supporting Google Colab notebook for a LLaMA 2 13B adapter trained in the scope of my master's thesis published in the Springer BestMasters series.
-It primary purpose is the controlled generation of psychological test items based on the inputs: construct-name, definition, sub-construct, definition, difficulty*, inversion.
+This repository contains a supporting Google Colab notebook for a LLaMA 2 13B adapter, trained as part of my master's thesis published in the Springer BestMasters series.
+The model specializes in generating psychological test items with controlled parameters including:
+- Construct name and definition
+- Sub-construct and definition
+- Difficulty level*
+- Inversion status
 
-* Has shown to not affect the actual item-difficulty.
+\* Note: Research indicates this parameter does not significantly influence actual item difficulty.
 
-# How to use this repository
-1. Try out the model using the gradio app notebook. For that to work you need to accept the conditions at: https://huggingface.co/bgilles/PsychometricLLaMA ; https://huggingface.co/meta-llama/Llama-2-13b-hf ; and input a hugging face account token into the area marked with "SECRET"
+## Getting Started
 
-2. Have a look at the studies methodology. Most files that were used in creating the study are published here. There are some limitations and it is a bit chaotic. For once, many scripts will not fully run, because I was not allowed to upload the complete dataset I used for training. My curated item-set from studies and the open sourced IPIP items are included. Also I did not get around to translate all German comments to English. I also could not upload all adapter files, since GitHub only allows files smaller than 100 MB.
+### 1. Try the Model
+To use the interactive Gradio app:
+1. Accept the model terms at:
+    - https://huggingface.co/bgilles/PsychometricLLaMA
+    - https://huggingface.co/meta-llama/Llama-2-13b-hf
+2. Get your Hugging Face account token
+3. Insert your token in the notebook's "SECRET" section
 
-*If you want to reproduce parts of the process, have questions or want access to some other adapter files, please reach out to me on GitHub or LinkedIn https://www.linkedin.com/in/bj%C3%B6rn-gilles/ . I am happy to explain in detail or provide data.*
+### 2. Explore the Methodology
+The repository includes most files used in the study, with some limitations:
+- Training dataset is partially available (complete dataset couldn't be shared)
+- Curated item-set from studies and IPIP items are included
+- Some German comments remain untranslated
+- Large adapter files (>100MB) are not on GitHub
+
+**Need Help?** For questions, data access, or detailed explanations, reach out via:
+- GitHub Issues
+- LinkedIn: https://www.linkedin.com/in/björn-gilles/
 

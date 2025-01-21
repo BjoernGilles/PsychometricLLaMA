@@ -1,5 +1,5 @@
-# Skript für die Auswertung der Nacherhebung
-Laden der Packete und der Daten
+# Script for analyzing the follow-up survey
+Loading packages and data
 ```{r}
 library(pacman)
 

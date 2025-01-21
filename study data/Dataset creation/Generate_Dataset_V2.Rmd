@@ -1,6 +1,5 @@
-
-# Skript zur erstellung der LLM-Prompts
-## Pakete laden
+# Script for creating LLM prompts
+## Load packages
 
 ```{r}
 library(pacman)
@@ -23,7 +22,7 @@ load("./SRC/Datenbank Hommel/hommel_items_full_3.RDS")
 ipip_items <- read.xlsx("./SRC/IPIP/IPIP_Items_shortened.xlsx")
 ```
 
-# Schwierigkeit skalieren
+# Scale difficulty
 
 ```{r}
 data$Mittelwert <- data$Mittelwert%>%as.numeric()
@@ -97,7 +96,7 @@ data <- cbind(data,construct_vector,main_definition_vector,subconstruct_vector,s
 ```
 
 
-# Die Items von Björn Hommel hinzufügen
+# Add items from Björn Hommel
 
 ```{r}
 output <- output%>%
@@ -241,7 +240,7 @@ data <- apply(data,MARGIN = c(1,2),FUN=function(clean){if(is.na(clean)|(clean%in
 ```
 
 
-## Unvollstaendige Items entfernen
+## Remove incomplete items
 
 ```{r}
 

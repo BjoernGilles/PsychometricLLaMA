@@ -1,6 +1,6 @@
 
-# Skript zur erstellung der LLM-Prompts
-## Pakete laden
+# Script for creating the LLM training data
+## Load packages
 
 ```{r}
 library(pacman)
@@ -15,7 +15,7 @@ p_load(
 ```
 
 
-# Daten einlesen
+# Load Data
 ```{r}
 data <- read.xlsx("./SRC/Eigener Datensatz/Data_Training.xlsx")
 scale_definition <- read.xlsx("./SRC/Eigener Datensatz/Skalen_Definitionen_shortened.xlsx")
@@ -23,7 +23,7 @@ load("./SRC/Datenbank_Hommel/hommel_items_full_2.RDS")
 ipip_items <- read.xlsx("./SRC/IPIP/IPIP_Items_shortened.xlsx")
 ```
 
-# Schwierigkeit skalieren
+# Scale difficulty
 
 ```{r}
 data$Item %>% grepl(pattern=("\\(R\\)"),ignore.case = T)%>%table()
@@ -118,7 +118,7 @@ data <- data[,-c(2,3)]
 data <- rbind(data,data_hommel)
 ```
 
-# IPIP Items hinzufügen
+# Add IPIP items
 ```{r}
 # Function converting to lower or upper Case the first letter of each string
 
@@ -133,13 +133,12 @@ str_start_to_upper <- function(string){
   string <- paste(toupper(substr(string, 1, 1)), substr(string, 2, nchar(string)), sep="")
   return(string)
 }
-
-# Skalen mit einem Alpha von <= .60 entfernen
+# Remove scales with an alpha <= .60
 
 (ipip_items$alpha<=.60) %>% which() %>% length()
 
-# 83 Items stammen aus Skalen mit einem niedrigem Alpha
-# Diese werden entfernt
+# 83 items come from scales with a low alpha
+# These will be removed
 
 ipip_low_alpha <- (ipip_items$alpha<=.60) %>% which()
 
@@ -168,9 +167,9 @@ for(i in 1:nrow(ipip_items)){
 
 ipip_labels <- ipip_items$label%>%str_split(pattern = ",")
 (lapply(ipip_labels,FUN = length)>=2) %>% which()%>%length()
-# 35 Items haben Subskalen
+# 35 items have subscales
 
-#Aufteilen in Main und Subkonstrukt
+#Split into main construct and subconstruct
 ipip_main_construct <- sapply(ipip_labels,FUN=function(x)x[1])
 ipip_sub_construct <- sapply(ipip_labels,FUN=function(x)x[2])
 
@@ -270,21 +269,22 @@ sorted_construct_table[1:40]
 ggdensity(sorted_construct_table %>% c(), )
 
 sorted_construct_table %>% c() %>% describe()
-# Die 395 Konstrukte/Subkonstrukte haben im Median 9 Items. Im Mittelwert hingegen 20. Das Maximum ist 1258.
-# Balancieren sollte helfen die Daten zu verbessern
-# Insbesondere die folgenden Konstrukte kommen extrem haeufig vor:
+
+# The 395 constructs/subconstructs have a median of 9 items. On average, however, they have 20 items. The maximum is 1258.
+# Balancing should help improve the data.
+# In particular, the following constructs occur extremely frequently:
 
 'Extraversion NA                            Conscientiousness NA
-                                           1258                                             466
-                               Agreeableness NA                          Emotional Stability NA
-                                            427                                             250
-                                     Empathy NA                                  Neuroticism NA
-                                            202                                             199
-                                 Imagination NA                                           NA NA
-                                            178                                             124
-                                 Sociability NA                           Need For Cognition NA
-                                            115 '
-# Daher wird ein Cut-Off von 100 Items pro construct getestet.
+                       1258                                             466
+                 Agreeableness NA                          Emotional Stability NA
+                      427                                             250
+                   Empathy NA                                  Neuroticism NA
+                      202                                             199
+                 Imagination NA                                           NA NA
+                      178                                             124
+                 Sociability NA                           Need For Cognition NA
+                      115 '
+# Therefore, a cut-off of 100 items per construct is tested.
 
 #too_frequent_constructs <- sorted_construct_table[which(sorted_construct_table>=100)]%>%names()
 
@@ -309,10 +309,10 @@ data <- data %>% unique()
 ```{r}
 
 
-# Zu haeufige Items entfernen.
+# Remove common items
 item_table <- data$Item %>% table()
 (item_table[order(item_table, decreasing = TRUE)] > 5) %>% which() %>% length()
-# 86 Items kommen mehr als 5 mal vor.
+# 86 items are more frequent than 5 times
 
 over_5_reps <-
   (item_table[order(item_table, decreasing = TRUE)] > 5) %>% which()
@@ -345,8 +345,7 @@ c_names_exclude <- c_names[which(less_than_two)]
 
 data <- data %>%
   filter(!construct_vector %in% c_names_exclude)
-
-# Konstrukte mit zu wenig Item, welche entfernt wurden
+  # Constructs with too few items that were removed
 ' [1] "Abasement"           "Absorption"          "Aesthetics"          "Ambition"            "Communality"         "Entertaining"
  [7] "Language Mastery"    "Responsive Distress" "Self-Forgetful"      "Teamwork"            "Virtuous"            "Wisdom" '
 ```
@@ -371,9 +370,7 @@ data$sub_definition_vector %>% unique() %>% length()
 # 144 Subconstructs with definition
 
 (!data$difficulty == "NA") %>% which %>% length()
-# 2283 Schwierigkeitsangaben fuer Items
-
-
+# 2283 Difficulty indications for items
 
 
 ```
@@ -486,8 +483,7 @@ data_the_rest<- data%>%filter(main_definition_vector!="NA"|sub_definition_vector
   
 data <- rbind(data_no_definition,data_the_rest)
 ```
-
-# Invertierung als zusaetzliche Spalte einfuegen
+# Add inversion as an additional column
 ```{r}
 
 data <- data%>%
@@ -506,7 +502,7 @@ data$subconstruct_vector%>%na.omit()%>%table()%>%length()
 ```
 
 
-# Daten in Prompt-Format überführen.
+# Convert data to prompt format.
 ```{r}
 format_prompt <- function(x){
   paste("###Construct:",x$construct_vector, "\n", "###C_definition:", x$main_definition_vector, "\n","###Subconstruct:",

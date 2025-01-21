@@ -8,7 +8,7 @@ import json
 from fuzzywuzzy import fuzz
 import random
 
-os.chdir('C:/Users/Admin/sciebo/Uni/Master/Masterarbeit/Fragebogen/Zweite Version/Items')
+os.chdir(r'study data\Model validation\Nacherhebung\Item-Selektion\generated_items_nacherhebung_e4.json')
 
 data = json.loads(open('generated_items_nacherhebung_e4.json').read())
 
@@ -136,11 +136,11 @@ item_no_train_cleaned = item_no_train_cleaned.rename(columns={'similarity': 'tra
 frequency_table = item_no_train_cleaned.groupby(['inverted', 'construct', 'difficulty']).size().reset_index(name='count')
 
 #save frequency table to excel
-frequency_table.to_excel('frequency_table_nv2.xlsx', index=False)
+#frequency_table.to_excel('frequency_table_nv2.xlsx', index=False)
 
 print(frequency_table)
 
 # Save cleaned items to excel
 
-item_no_train_cleaned.to_excel('item_no_train_cleaned_nv2.xlsx', index=False)
+#item_no_train_cleaned.to_excel('item_no_train_cleaned_nv2.xlsx', index=False)
 

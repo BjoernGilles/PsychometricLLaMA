@@ -7,7 +7,7 @@ The model specializes in generating psychological test items with controlled par
 - Difficulty level*
 - Inversion status
 
-\* Note: Research indicates this parameter does not significantly influence actual item difficulty.
+\* Note: My master's thesis indicates this parameter does not significantly influence actual item difficulty.
 
 ## Getting Started
 

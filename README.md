@@ -23,7 +23,7 @@ To use the interactive Gradio app:
 The repository includes most files used in the study, with some limitations:
 - Training dataset is partially available (complete dataset couldn't be shared)
 - Curated item-set from studies and IPIP items are included
-- Some German comments remain untranslated
+- Many comments and file names remain in German language
 - Large adapter files (>100MB) are not on GitHub
 
 The procedure is described in detail in my master's thesis, published in the Springer's BestMasters book series, ISBN: 9783658468927

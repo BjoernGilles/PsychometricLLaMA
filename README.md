@@ -1,4 +1,4 @@
-# PsychometricLLaMA: Controlled Generation of Psychometric Test Items
+# PsychometricLLaMA: Controlled Generation of Psychometric Test Items (https://link.springer.com/book/10.1007/978-3-658-46893-4)
 
 This repository contains a supporting Google Colab notebook for a LLaMA 2 13B adapter, trained as part of my master's thesis published in the Springer BestMasters series.
 The model specializes in generating psychological test items with controlled parameters including:

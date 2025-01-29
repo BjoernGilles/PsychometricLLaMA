@@ -26,6 +26,8 @@ The repository includes most files used in the study, with some limitations:
 - Some German comments remain untranslated
 - Large adapter files (>100MB) are not on GitHub
 
+The procedure is described in detail in my master's thesis, published in the Springer's BestMasters book series, ISBN: 9783658468927
+
 **Need Help?** For questions, data access, or detailed explanations, reach out via:
 - GitHub Issues
 - LinkedIn: https://www.linkedin.com/in/björn-gilles/

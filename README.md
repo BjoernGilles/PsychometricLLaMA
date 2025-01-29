@@ -9,6 +9,8 @@ The model specializes in generating psychological test items with controlled par
 
 \* Note: My master's thesis indicates this parameter does not significantly influence actual item difficulty.
 
+* When I find time in the future, I will work on improving the documentation. *
+
 ## Getting Started
 
 ### 1. Try the Model
